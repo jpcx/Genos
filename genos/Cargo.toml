@@ -1,0 +1,27 @@
+[package]
+name = "genos"
+version = "0.1.0"
+edition = "2021"
+authors = ["Brian Caulfield"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+mockall = "0.11"
+serde = { version = "1", features = ["derive"] }
+test-log = {version = "0.2", features = ["trace"] }
+thiserror = "1"
+tokio = { version = "1", features = ["full"] }
+toml = "0.7"
+tracing = {version = "0.1", default-features = true}
+tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
+tempfile = "3"
+futures = "0.3"
+
+[dev-dependencies]
+env_logger = "*"
+
+[lib]
+name = "genos"
