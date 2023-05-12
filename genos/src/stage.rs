@@ -7,7 +7,6 @@ use crate::{output::Output, score::Score, Executor};
 
 pub mod compare_files;
 pub mod import_files;
-pub mod valgrind;
 
 /// System Stage executors represent executors which are for the autograding system itself. As
 /// such, they cannot by themselves fail a test. Any errors by a system stage should be treated as

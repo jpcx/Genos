@@ -6,7 +6,6 @@ use serde::Deserialize;
 
 //use super::SystemStageExecutor;
 
-/// Holds information associated
 #[derive(Default)]
 pub struct Valgrind {
     options: Vec<String>,
@@ -14,11 +13,8 @@ pub struct Valgrind {
 }
 
 impl Valgrind {
-    // TODO: Err if suppressions or target does not exist
     pub fn new(config: &ValgrindConfig, target: &Path) -> Self {
         let mut valgrind = Valgrind::default();
-
-        valgrind.options.reserve(6);
 
         if let Some(v) = config.leak_check {
             valgrind.options.push(format!("--leak-check={:?}", v));

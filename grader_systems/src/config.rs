@@ -4,7 +4,7 @@ use genos::{
     tid::TestId,
 };
 
-use crate::stage::{compile::CompileConfig, run::RunConfig};
+use crate::stage::{compile::CompileConfig, run::RunConfig, valgrind::ValgrindConfig};
 
 pub enum TestType {
     Diff,
@@ -23,4 +23,5 @@ pub struct TestConfig {
     pub run: RunConfig,
     pub compare_files: Option<ComparesConfig>,
     pub import_files: Option<ImportConfig>,
+    pub valgrind: Option<ValgrindConfig>,
 }
