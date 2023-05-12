@@ -44,6 +44,13 @@ impl Score {
     pub fn received_full_points(&self) -> bool {
         self.possible == self.received
     }
+
+    pub fn remove_points(&self, points: Points) -> Score {
+        Self::new(
+            (self.received - points).max(Points::new(0)),
+            self.possible(),
+        )
+    }
 }
 
 impl Add for Score {

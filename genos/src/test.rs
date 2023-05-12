@@ -6,9 +6,9 @@ use tracing::{debug, instrument};
 
 use crate::{
     output::Output,
-    points::Points,
+    points::{PointQuantity, Points},
     score::Score,
-    stage::{StagePoints, StageResult, StageStatus},
+    stage::{StageResult, StageStatus},
     tid::TestId,
     Executor,
 };
@@ -17,6 +17,18 @@ use crate::{
 pub enum TestStatus {
     Pass(Score),
     Fail(Score),
+}
+
+impl TestStatus {
+    pub fn possible_points(&self) -> Points {
+        self.score().possible()
+    }
+
+    pub fn score(&self) -> Score {
+        match self {
+            Self::Pass(score) | Self::Fail(score) => *score,
+        }
+    }
 }
 
 impl Into<TestResult> for TestStatus {
@@ -42,8 +54,34 @@ impl std::fmt::Debug for TestResult {
 }
 
 impl TestResult {
-    pub fn new(status: TestStatus, output: Output) -> Self {
-        Self { status, output }
+    pub fn new(max_points: Points) -> Self {
+        Self {
+            status: TestStatus::Pass(Score::full_points(max_points)),
+            output: Output::default(),
+        }
+    }
+
+    fn append_stage_result(&mut self, res: StageResult) {
+        self.output.append(res.output.unwrap_or_default());
+        match res.status {
+            StageStatus::Continue { points_lost } => match points_lost {
+                PointQuantity::FullPoints => self.lose_full_points(),
+                PointQuantity::Partial(points) => self.subtract_points(points),
+            },
+            StageStatus::UnrecoverableFailure => self.lose_full_points(),
+        }
+    }
+
+    fn lose_full_points(&mut self) {
+        let max_points = self.status.possible_points();
+        self.status = TestStatus::Fail(Score::zero_points(max_points));
+    }
+
+    fn subtract_points(&mut self, points: Points) {
+        if points != Points::new(0) {
+            let new_score = self.status.score().remove_points(points);
+            self.status = TestStatus::Fail(new_score);
+        }
     }
 }
 
@@ -96,55 +134,6 @@ impl GenosTest {
     }
 }
 
-#[derive(Default)]
-struct ResultBuilder {
-    output: Output,
-    partial_points_processed: Points,
-    points_possible: Points,
-    score: Score,
-    test_failed: bool,
-}
-
-impl ResultBuilder {
-    fn new(points_possible: Points) -> Self {
-        Self {
-            points_possible,
-            ..Default::default()
-        }
-    }
-
-    fn record_result(&mut self, res: StageResult) {
-        self.output.append(res.output.unwrap_or(Output::new()));
-        if let StageStatus::Continue(stage_points) = res.status {
-            match stage_points {
-                StagePoints::Partial(score) => {
-                    self.score += score;
-                    self.partial_points_processed += score.possible();
-                }
-                StagePoints::Absolute(passed) => self.test_failed |= !passed,
-            }
-        }
-    }
-
-    fn to_result(self) -> TestResult {
-        assert_eq!(
-            self.partial_points_processed, self.points_possible,
-            "Expected test points to sum to the total points possible for the test. Found {}, Expected {}",
-            self.partial_points_processed, self.points_possible);
-
-        let score = if self.test_failed {
-            Score::zero_points(self.points_possible)
-        } else {
-            self.score
-        };
-
-        match score.received_full_points() {
-            true => TestResult::new(TestStatus::Pass(score), self.output),
-            false => TestResult::new(TestStatus::Fail(score), self.output),
-        }
-    }
-}
-
 /// GenosTest will go through and run each stage and collate the results into something which can
 /// be interpreted by the results writers.
 /// When a stage returns StageStatus::UnrecoverableFailure (such as during a compilation error or a
@@ -181,23 +170,20 @@ impl Executor for GenosTest {
 
     #[instrument(skip(self), tid = self.tid)]
     async fn run(&self, ws: &Path) -> Result<TestResult> {
-        let mut builder = ResultBuilder::new(self.points());
+        let mut test_result = TestResult::new(self.points());
 
         for stage in &self.stages {
             let res = stage.run(ws).await?;
             debug!(?res.status, "stage completed");
-            let status = res.status.clone();
-            builder.record_result(res);
+            let status = res.status;
+            test_result.append_stage_result(res);
 
             if let StageStatus::UnrecoverableFailure = status {
-                return Ok(TestResult::new(
-                    TestStatus::Fail(Score::zero_points(self.points())),
-                    builder.output,
-                ));
+                break;
             }
         }
 
-        Ok(builder.to_result())
+        Ok(test_result)
     }
 }
 
@@ -221,8 +207,6 @@ mod tests {
         },
     };
 
-    use crate::stage::StagePoints;
-
     use super::*;
     use anyhow::anyhow;
 
@@ -233,7 +217,7 @@ mod tests {
         impl Executor for MockStage {
             type Output = StageResult;
             async fn run(&self, _ws: &Path) -> Result<StageResult> {
-                Ok(StageStatus::Continue(StagePoints::Partial(Score::new(0, 0))).into())
+                Ok(StageResult::new_continue(PointQuantity::zero()))
             }
         }
 
@@ -274,14 +258,8 @@ mod tests {
     #[tokio::test]
     async fn genos_runs_all_on_success() {
         let stages = get_stage_list_with_results([
-            Ok(StageResult {
-                status: StageStatus::Continue(StagePoints::Partial(Score::new(2, 2))),
-                output: None,
-            }),
-            Ok(StageResult {
-                status: StageStatus::Continue(StagePoints::Partial(Score::new(2, 2))),
-                output: None,
-            }),
+            Ok(StageResult::new_continue(PointQuantity::zero())),
+            Ok(StageResult::new_continue(PointQuantity::zero())),
         ]);
 
         let test = GenosTest::new(TestId::new(0), Points::new(4)).stages(stages);
@@ -292,18 +270,9 @@ mod tests {
     #[tokio::test]
     async fn genos_stops_on_first_fail() {
         let stages = get_stage_list_with_results([
-            Ok(StageResult {
-                status: StageStatus::Continue(StagePoints::Partial(Score::new(2, 2))),
-                output: None,
-            }),
-            Ok(StageResult {
-                status: StageStatus::UnrecoverableFailure,
-                output: None,
-            }),
-            Ok(StageResult {
-                status: StageStatus::Continue(StagePoints::Partial(Score::new(2, 2))),
-                output: None,
-            }),
+            Ok(StageResult::new_continue(PointQuantity::zero())),
+            Ok(StageResult::new_unrecoverable_failure()),
+            Ok(StageResult::new_continue(PointQuantity::zero())),
         ]);
 
         let last_stage_count = stages[2].call_count.clone();
@@ -318,15 +287,9 @@ mod tests {
     #[tokio::test]
     async fn genos_stops_on_first_error() {
         let stages = get_stage_list_with_results([
-            Ok(StageResult {
-                status: StageStatus::Continue(StagePoints::Partial(Score::new(2, 2))),
-                output: None,
-            }),
+            Ok(StageResult::new_continue(PointQuantity::zero())),
             Err(anyhow!("stage error")),
-            Ok(StageResult {
-                status: StageStatus::Continue(StagePoints::Partial(Score::new(2, 2))),
-                output: None,
-            }),
+            Ok(StageResult::new_continue(PointQuantity::zero())),
         ]);
 
         let last_stage_count = stages[2].call_count.clone();

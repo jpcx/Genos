@@ -251,6 +251,8 @@ dependencies = [
  "genos",
  "tempfile",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

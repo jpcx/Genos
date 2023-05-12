@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::points::Points;
+use crate::points::PointQuantity;
 
 /*
 [[ test name ]]
@@ -183,6 +183,12 @@ impl Into<Content> for RichText {
     }
 }
 
+impl Into<Content> for StatusUpdates {
+    fn into(self) -> Content {
+        Content::StatusList(self)
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct RichText {
     text: String,
@@ -213,7 +219,9 @@ where
     T: Into<String>,
 {
     fn code(self) -> RichText {
-        RichText::new(self)
+        let mut text = RichText::new(self);
+        text.code = true;
+        text
     }
 }
 
@@ -255,16 +263,10 @@ pub enum Status {
 }
 
 #[derive(Clone)]
-pub enum PointsLost {
-    Full,
-    Partial(Points),
-}
-
-#[derive(Clone)]
 pub struct Update {
     description: String,
     status: Status,
-    points_lost: Option<PointsLost>,
+    points_lost: Option<PointQuantity>,
     notes: Option<Content>,
 }
 
@@ -278,12 +280,27 @@ impl Update {
         }
     }
 
+    pub fn status(mut self, status: Status) -> Self {
+        self.status = status;
+        self
+    }
+
     pub fn set_status(&mut self, status: Status) {
         self.status = status;
     }
 
-    pub fn set_points_lost(&mut self, points: PointsLost) {
+    pub fn points_lost(mut self, points: PointQuantity) -> Self {
         self.points_lost = Some(points);
+        self
+    }
+
+    pub fn set_points_lost(&mut self, points: PointQuantity) {
+        self.points_lost = Some(points);
+    }
+
+    pub fn notes<C: Into<Content>>(mut self, notes: C) -> Self {
+        self.notes = Some(notes.into());
+        self
     }
 
     pub fn set_notes<C: Into<Content>>(&mut self, notes: C) {

@@ -4,6 +4,7 @@ use std::path::Path;
 
 pub mod fs;
 pub mod genos;
+pub mod gs;
 pub mod output;
 pub mod points;
 pub mod process;

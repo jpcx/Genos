@@ -4,7 +4,9 @@
 
 use std::{
     collections::HashMap,
+    env,
     fmt::Display,
+    fs,
     os::unix::process::ExitStatusExt,
     path::PathBuf,
     process::{ExitStatus as StdExitStatus, Stdio},
@@ -83,10 +85,18 @@ impl Command {
         self
     }
 
+    pub fn set_cwd<T: Into<PathBuf>>(&mut self, cwd: T) {
+        self.cwd = Some(cwd.into());
+    }
+
     pub fn stdin(mut self, cfg: StdinPipe) -> Self {
         // save the stdin type here, then run the process differently based on pipe type
         self.stdin = Some(cfg);
         self
+    }
+
+    pub fn set_stdin(&mut self, cfg: StdinPipe) {
+        self.stdin = Some(cfg);
     }
 
     pub fn stderr<T: Into<PathBuf>>(mut self, cfg: T) -> Self {
@@ -95,15 +105,29 @@ impl Command {
         self
     }
 
+    pub fn set_stderr<T: Into<PathBuf>>(&mut self, cfg: T) {
+        // save out/err here and then optionally save the output if given
+        self.stderr = Some(cfg.into());
+    }
+
     pub fn stdout<T: Into<PathBuf>>(mut self, cfg: T) -> Self {
         // save out/err here and then optionally save the output if given
         self.stdout = Some(cfg.into());
         self
     }
 
+    pub fn set_stdout<T: Into<PathBuf>>(&mut self, cfg: T) {
+        // save out/err here and then optionally save the output if given
+        self.stdout = Some(cfg.into());
+    }
+
     pub fn timeout<T: Into<Duration>>(mut self, timeout: T) -> Self {
         self.timeout = Some(timeout.into());
         self
+    }
+
+    pub fn set_timeout<T: Into<Duration>>(&mut self, timeout: T) {
+        self.timeout = Some(timeout.into());
     }
 
     pub async fn run_with<E: ProcessExecutor>(&self, executor: &E) -> Result<Output> {
@@ -135,12 +159,12 @@ impl Display for Command {
         }
 
         output.extend(
-            [&self.stdout, &self.stderr]
+            [(&self.stdout, ">"), (&self.stderr, "2>")]
                 .into_iter()
-                .filter_map(|path_option| {
+                .filter_map(|(path_option, pipe_char)| {
                     path_option
                         .as_ref()
-                        .map(|path| format!("{}", path.display()))
+                        .map(|path| format!("{} {}", pipe_char, path.display()))
                 }),
         );
 
@@ -414,6 +438,23 @@ impl ExitStatus {
             _ => false,
         }
     }
+
+    pub fn completed(&self) -> bool {
+        match self {
+            Self::Ok => true,
+            Self::Failure(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn exit_code(&self) -> Option<i32> {
+        match self {
+            Self::Ok => Some(0),
+            Self::Failure(rc) => Some(*rc),
+            Self::Timeout(_) => None,
+            Self::Signal(signal) => Some(signal.into()),
+        }
+    }
 }
 
 impl From<StdExitStatus> for ExitStatus {
@@ -448,6 +489,27 @@ impl From<i32> for SignalType {
             _ => panic!("unexpected signal {}", value),
         }
     }
+}
+
+impl From<&SignalType> for i32 {
+    fn from(value: &SignalType) -> Self {
+        match *value {
+            SignalType::SegFault => 11,
+            SignalType::Abort => 6,
+        }
+    }
+}
+
+pub fn is_program_in_path(program: &str) -> bool {
+    if let Ok(path) = env::var("PATH") {
+        for p in path.split(":") {
+            let p_str = format!("{}/{}", p, program);
+            if fs::metadata(p_str).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[cfg(test)]

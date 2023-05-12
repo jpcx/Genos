@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::{output::Output, score::Score, Executor};
+use crate::{output::Output, points::PointQuantity, Executor};
 
 pub mod compare_files;
 pub mod import_files;
@@ -22,21 +22,15 @@ where
     T: SystemStageExecutor,
 {
     type Output = StageResult;
+
+    /// Implement Executor for anything implementing a SystemStageExecutor. SystemStageExecutor
+    /// returns either OK or an error. If it returned an error, then bubble that up, otherwise map
+    /// an OK value to a StageResult.
     async fn run(&self, ws: &Path) -> Result<Self::Output> {
-        self.run(ws).await.map(|_| StageResult {
-            status: StageStatus::Continue(StagePoints::Absolute(true)),
-            output: None,
-        })
+        self.run(ws)
+            .await
+            .map(|_| StageResult::new_continue(PointQuantity::zero()))
     }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum StagePoints {
-    /// Designates the stage was pass/fail along with the pass status
-    Absolute(bool),
-
-    /// Disignates the stage as counting towards partial credit, and the score received
-    Partial(Score),
 }
 
 /// Each stage needs to communicate
@@ -54,20 +48,13 @@ pub enum StagePoints {
 ///     - In any case, the test will continue until all stages are completed or until an
 ///       unrecoverable failure is hit.
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum StageStatus {
-    Continue(StagePoints),
+    Continue { points_lost: PointQuantity },
     UnrecoverableFailure,
 }
 
-impl StageStatus {
-    pub fn unwrap_points(self) -> StagePoints {
-        match self {
-            Self::Continue(points) => points,
-            Self::UnrecoverableFailure => panic!("Expected variant with points"),
-        }
-    }
-}
+impl StageStatus {}
 
 impl Into<StageResult> for StageStatus {
     fn into(self) -> StageResult {
@@ -82,6 +69,25 @@ impl Into<StageResult> for StageStatus {
 pub struct StageResult {
     pub status: StageStatus,
     pub output: Option<Output>,
+}
+
+impl StageResult {
+    pub fn new(status: StageStatus, output: Option<Output>) -> Self {
+        Self { status, output }
+    }
+
+    pub fn new_unrecoverable_failure() -> Self {
+        Self::new(StageStatus::UnrecoverableFailure, None)
+    }
+
+    pub fn new_continue(points_lost: PointQuantity) -> Self {
+        Self::new(StageStatus::Continue { points_lost }, None)
+    }
+
+    pub fn with_output(mut self, output: Output) -> Self {
+        self.output = Some(output);
+        self
+    }
 }
 
 impl std::fmt::Debug for StageResult {
@@ -120,7 +126,9 @@ mod tests {
         let stage_result = executor.run(&PathBuf::new()).await.unwrap();
         assert_eq!(
             stage_result.status,
-            StageStatus::Continue(StagePoints::Absolute(true))
+            StageStatus::Continue {
+                points_lost: PointQuantity::zero(),
+            }
         );
     }
 
