@@ -4,8 +4,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use genos::{
     output::{self, Content, RichTextMaker, Section, StatusUpdates, Update},
+    points::PointQuantity,
     process::{self, Command, ExitStatus, ProcessExecutor},
-    stage::{StagePoints, StageResult, StageStatus},
+    stage::{StageResult, StageStatus},
     Executor,
 };
 
@@ -57,24 +58,22 @@ impl<E: ProcessExecutor> Executor for Compile<E> {
             ExitStatus::Ok => {
                 update.set_status(output::Status::Pass);
                 status_updates.add_update(update);
-                section.add_content(Content::StatusList(status_updates));
 
-                Ok(StageResult {
-                    status: StageStatus::Continue(StagePoints::Absolute(true)),
-                    output: Some(output::Output::new().section(section)),
-                })
+                section.add_content(status_updates);
+
+                Ok(StageResult::new_continue(PointQuantity::zero())
+                    .with_output(output::Output::new().section(section)))
             }
 
             _ => {
                 update.set_status(output::Status::Fail);
                 update.set_notes(self.get_compile_feedback(output));
                 status_updates.add_update(update);
-                section.add_content(Content::StatusList(status_updates));
 
-                Ok(StageResult {
-                    status: StageStatus::UnrecoverableFailure,
-                    output: Some(output::Output::new().section(section)),
-                })
+                section.add_content(status_updates);
+
+                Ok(StageResult::new_unrecoverable_failure()
+                    .with_output(output::Output::new().section(section)))
             }
         }
     }
@@ -106,7 +105,12 @@ mod tests {
         let ws = tempfile::tempdir().unwrap();
         let res = compile.run(ws.path()).await.unwrap();
 
-        assert_eq!(res.status.unwrap_points(), StagePoints::Absolute(true));
+        assert_eq!(
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::zero()
+            }
+        );
 
         let cmd = data.lock().unwrap().commands.pop().unwrap();
         assert_eq!(&cmd.program, "make");

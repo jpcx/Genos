@@ -12,14 +12,11 @@ use tracing::debug;
 use crate::{
     fs::{filename, filepath, ResourceLocatorCreator},
     output::{self, Content, Output, RichTextMaker, Section, StatusUpdates, Update},
-    points::PointsType,
+    points::PointQuantity,
     process::{Command, ExitStatus, ProcessExecutor},
-    score::Score,
     stage::StageResult,
     Executor,
 };
-
-use super::{StagePoints, StageStatus};
 
 #[derive(Deserialize, Clone)]
 pub struct ComparesConfig {
@@ -31,7 +28,7 @@ pub struct CompareConfig {
     expected: Vec<String>,
     student_file: String,
     compare_type: CompareType,
-    points: PointsType,
+    points: PointQuantity,
     show_output: bool,
 }
 
@@ -248,15 +245,13 @@ where
     type Output = StageResult;
 
     async fn run(&self, ws: &Path) -> Result<Self::Output> {
-        let mut score = Score::default();
-        let mut failed = false;
-
         let mut compare_status_updates = StatusUpdates::default();
+        let mut points_lost = PointQuantity::zero();
 
         for compare_config in &self.config.compares {
             debug!("Running compare {:?}", compare_config);
             let mut update = Update::new(format!(
-                "Comparing {} {}",
+                "Comparing {} ({})",
                 compare_config.student_file, compare_config.compare_type
             ));
             let student_file = ws.join(&compare_config.student_file);
@@ -265,24 +260,14 @@ where
             if !student_file.exists() {
                 debug!("Could not find student file: {}", student_file.display());
                 update.set_status(output::Status::Fail);
-
-                match &compare_config.points {
-                    PointsType::Partial(possible_points) => {
-                        score += Score::new(0, possible_points);
-                        update.set_points_lost(output::PointsLost::Partial(*possible_points));
-                    }
-                    PointsType::FullPoints => {
-                        failed = true;
-                        update.set_points_lost(output::PointsLost::Full);
-                    }
-                }
-
+                update.set_points_lost(compare_config.points);
                 update.set_notes(format!(
                     "Could not find file {} in root of workspace",
                     compare_config.student_file
                 ));
-
                 compare_status_updates.add_update(update);
+
+                points_lost += compare_config.points;
 
                 continue;
             }
@@ -291,27 +276,14 @@ where
             // comparator factory.
             if self.match_any(compare_config, ws).await? {
                 update.set_status(output::Status::Pass);
-                if let PointsType::Partial(points) = &compare_config.points {
-                    score += Score::full_points(points);
-                }
-
+                compare_status_updates.add_update(update);
                 continue;
             }
 
             // if we didn't find a match, then we need to give the student feedback
             update.set_status(output::Status::Fail);
-
-            // TODO: Find a better way to do this withou repeating code with above
-            match &compare_config.points {
-                PointsType::Partial(possible_points) => {
-                    score += Score::new(0, possible_points);
-                    update.set_points_lost(output::PointsLost::Partial(*possible_points));
-                }
-                PointsType::FullPoints => {
-                    failed = true;
-                    update.set_points_lost(output::PointsLost::Full);
-                }
-            }
+            update.set_points_lost(compare_config.points);
+            points_lost += compare_config.points;
 
             let finder = self.fs_creator.create(ws);
             let expected_file = finder.find(&compare_config.expected[0])?;
@@ -323,26 +295,10 @@ where
             compare_status_updates.add_update(update);
         }
 
-        let output = Output::new().section(
-            Section::new("Compare Output").content(Content::StatusList(compare_status_updates)),
-        );
+        let output =
+            Output::new().section(Section::new("Compare Output").content(compare_status_updates));
 
-        match failed {
-            true => {
-                ();
-                Ok(StageResult {
-                    status: StageStatus::Continue(StagePoints::Absolute(false)),
-                    output: Some(output),
-                })
-            }
-            false => {
-                ();
-                Ok(StageResult {
-                    status: StageStatus::Continue(StagePoints::Partial(score)),
-                    output: Some(output),
-                })
-            }
-        }
+        Ok(StageResult::new_continue(points_lost).with_output(output))
     }
 }
 
@@ -398,6 +354,7 @@ mod tests {
         output::Contains,
         points::Points,
         process::{self, ShellExecutor},
+        stage::StageStatus,
         test_util::{create_temp_file_in, MockDir, MockExecutorInner, MockProcessExecutor},
     };
 
@@ -422,7 +379,7 @@ mod tests {
                 expected: vec!["expected_stdout".to_string()],
                 student_file: "stdout".to_string(),
                 compare_type: CompareType::Diff,
-                points: PointsType::Partial(Points::new(4)),
+                points: PointQuantity::Partial(Points::new(4)),
                 show_output: true,
             }],
         };
@@ -432,8 +389,10 @@ mod tests {
         let stage = CompareFiles::new(finder_creator, comparator_creator, compares);
         let res = stage.run(&ws.root.path()).await.unwrap();
         assert_eq!(
-            res.status.unwrap_points(),
-            StagePoints::Partial(Score::new(0, 4))
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::Partial(Points::new(4))
+            }
         );
 
         assert!(res.output.unwrap().contains("Could not find file"));
@@ -458,14 +417,14 @@ mod tests {
                     expected: vec!["expected_stdout".to_string()],
                     student_file: "stdout".to_string(),
                     compare_type: CompareType::Diff,
-                    points: PointsType::Partial(Points::new(1)),
+                    points: PointQuantity::Partial(Points::new(1)),
                     show_output: true,
                 },
                 CompareConfig {
                     expected: vec!["expected_stderr".to_string()],
                     student_file: "stderr".to_string(),
                     compare_type: CompareType::Diff,
-                    points: PointsType::Partial(Points::new(2)),
+                    points: PointQuantity::Partial(Points::new(2)),
                     show_output: true,
                 },
             ],
@@ -482,8 +441,10 @@ mod tests {
         let res = stage.run(&ws.root.path()).await.unwrap();
 
         assert_eq!(
-            res.status.unwrap_points(),
-            StagePoints::Partial(Score::new(3, 3))
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::zero(),
+            }
         );
     }
 
@@ -506,14 +467,14 @@ mod tests {
                     expected: vec!["expected_stdout".to_string()],
                     student_file: "stdout".to_string(),
                     compare_type: CompareType::Diff,
-                    points: PointsType::FullPoints,
+                    points: PointQuantity::FullPoints,
                     show_output: true,
                 },
                 CompareConfig {
                     expected: vec!["expected_stderr".to_string()],
                     student_file: "stderr".to_string(),
                     compare_type: CompareType::Diff,
-                    points: PointsType::FullPoints,
+                    points: PointQuantity::FullPoints,
                     show_output: true,
                 },
             ],
@@ -529,7 +490,12 @@ mod tests {
         let stage = CompareFiles::new(finder_creator, comparator_creator, compares);
         let res = stage.run(&ws.root.path()).await.unwrap();
 
-        assert_eq!(res.status.unwrap_points(), StagePoints::Absolute(false));
+        assert_eq!(
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::FullPoints,
+            }
+        );
     }
 
     #[tokio::test]
@@ -551,14 +517,14 @@ mod tests {
                     expected: vec!["expected_stdout".to_string()],
                     student_file: "stdout".to_string(),
                     compare_type: CompareType::Diff,
-                    points: PointsType::Partial(Points::new(1)),
+                    points: PointQuantity::Partial(Points::new(1)),
                     show_output: true,
                 },
                 CompareConfig {
                     expected: vec!["expected_stderr".to_string()],
                     student_file: "stderr".to_string(),
                     compare_type: CompareType::Diff,
-                    points: PointsType::Partial(Points::new(2)),
+                    points: PointQuantity::Partial(Points::new(2)),
                     show_output: true,
                 },
             ],
@@ -575,8 +541,10 @@ mod tests {
         let res = stage.run(&ws.root.path()).await.unwrap();
 
         assert_eq!(
-            res.status.unwrap_points(),
-            StagePoints::Partial(Score::new(1, 3))
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::Partial(Points::new(2)),
+            }
         );
     }
 
@@ -602,7 +570,7 @@ mod tests {
                 ],
                 student_file: "stdout".to_string(),
                 compare_type: CompareType::Diff,
-                points: PointsType::Partial(Points::new(1)),
+                points: PointQuantity::Partial(Points::new(1)),
                 show_output: true,
             }],
         };
@@ -618,8 +586,10 @@ mod tests {
         let res = stage.run(&ws.root.path()).await.unwrap();
 
         assert_eq!(
-            res.status.unwrap_points(),
-            StagePoints::Partial(Score::full_points(1))
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::zero(),
+            }
         );
     }
 

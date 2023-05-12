@@ -206,10 +206,51 @@ impl Serialize for Points {
 
 /// Points type is a convenience enum for use in configuration files which could be used to
 /// indicate if a stage in a test is worth partial or full points.
-#[derive(Debug, Eq, PartialEq, Clone, Deserialize)]
-pub enum PointsType {
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize)]
+pub enum PointQuantity {
     FullPoints,
     Partial(Points),
+}
+
+impl PointQuantity {
+    pub fn zero() -> Self {
+        Self::Partial(0.into())
+    }
+}
+
+impl Display for PointQuantity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::FullPoints => write!(f, "fullpoints"),
+            Self::Partial(points) => write!(f, "{}", points),
+        }
+    }
+}
+
+impl Add for PointQuantity {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match rhs {
+            Self::FullPoints => Self::FullPoints,
+            Self::Partial(rhs_points) => match self {
+                Self::FullPoints => Self::FullPoints,
+                Self::Partial(curr_points) => Self::Partial(curr_points + rhs_points),
+            },
+        }
+    }
+}
+
+impl AddAssign for PointQuantity {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl From<Points> for PointQuantity {
+    fn from(value: Points) -> Self {
+        Self::Partial(value)
+    }
 }
 
 #[cfg(test)]
