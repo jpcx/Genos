@@ -161,7 +161,7 @@ where
             run_status_updates.add_update(
                 Update::new("Running program")
                     .status(output::Status::Fail)
-                    .points_lost(output::PointsLost::Full)
+                    .points_lost(PointQuantity::FullPoints)
                     .notes(self.get_failed_run_notes(&res)),
             );
             section.add_content(run_status_updates);
@@ -174,8 +174,7 @@ where
         run_status_updates.add_update(Update::new("Running program").status(output::Status::Pass));
 
         if let Some(rc_config) = &self.config.return_code {
-            let (update, score) = self.check_return_code(rc_config, &cmd.status);
-            run_status_updates(update);
+            let (update, score) = self.check_return_code(rc_config, &res.status);
         }
 
         todo!();
