@@ -38,10 +38,7 @@ pub struct Valgrind<E> {
     timeout: Option<Duration>,
 }
 
-impl<E> Valgrind<E>
-where
-    E: ProcessExecutor,
-{
+impl<E: ProcessExecutor> Valgrind<E> {
     pub fn new(
         executor: E,
         config: ValgrindConfig,
