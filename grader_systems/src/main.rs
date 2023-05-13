@@ -11,7 +11,7 @@ use genos::{
     },
     test::GenosTest,
 };
-use stage::compile::Compile;
+use stage::{compile::Compile, run::Run};
 
 mod config;
 mod stage;
@@ -38,7 +38,7 @@ fn build_testcase(config: &TestConfig) -> Result<GenosTest> {
             // test order should be
             // 1. import files (done)
             // 2. compile (done)
-            // 3. run
+            // 3. run (done)
             // 4. compare (done)
             // 5. valgrind run
             // 6. run with memory limit
@@ -48,6 +48,8 @@ fn build_testcase(config: &TestConfig) -> Result<GenosTest> {
             }
 
             test.add_stage(Compile::new(&config.compile, ShellExecutor));
+
+            test.add_stage(Run::new(ShellExecutor, config.run.clone()));
 
             let compare_files = config
                 .compare_files

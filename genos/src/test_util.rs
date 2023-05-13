@@ -115,6 +115,12 @@ impl MockProcessExecutor {
     pub fn new(inner: Arc<Mutex<MockExecutorInner>>) -> Self {
         Self { inner }
     }
+
+    pub fn with_responses<I: IntoIterator<Item = Result<process::Output>>>(resp: I) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(MockExecutorInner::with_responses(resp))),
+        }
+    }
 }
 
 #[async_trait]
