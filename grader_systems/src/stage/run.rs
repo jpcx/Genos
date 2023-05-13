@@ -18,6 +18,7 @@ use tracing::debug;
 // give a default timeout of 1 minute. Number chosen arbitrarily.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 
+#[derive(Default)]
 pub struct RunConfig {
     args: Vec<String>,
     executable: String,

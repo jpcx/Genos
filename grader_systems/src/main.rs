@@ -4,7 +4,8 @@ use anyhow::Result;
 use config::{TestConfig, TestType};
 use genos::{
     fs::{ResourceLocator, ResourceLocatorCreator},
-    process::ShellExecutor,
+    gs::running_in_gs,
+    process::{is_program_in_path, ShellExecutor},
     stage::{
         compare_files::{ComparatorCreatorImpl, CompareFiles},
         import_files::ImportFiles,
@@ -59,6 +60,18 @@ fn build_testcase(config: &TestConfig) -> Result<GenosTest> {
                 ComparatorCreatorImpl::new(ShellExecutor),
                 compare_files.clone(),
             ));
+
+            if let Some(_) = &config.valgrind {
+                if running_in_gs() || is_program_in_path("valgrind") {
+                    todo!();
+                    //test.add_stage(Valgrind::new(...));
+                } else {
+                    tracing::warn!(
+                        "cannot run valgrind stage on local instance \
+                         without valgrind installed! skipping stage"
+                    );
+                }
+            }
 
             Ok(test)
         }
