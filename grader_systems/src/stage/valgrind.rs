@@ -340,7 +340,7 @@ mod tests {
 
     #[tokio::test]
     async fn hides_absolute() {
-        let noop_err = "\
+        let pwd_err = "\
             ==22856== Memcheck, a memory error detector\n\
             ==22856== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.\n\
             ==22856== Using Valgrind-3.20.0 and LibVEX; rerun with -h for copyright info\n\
@@ -358,7 +358,7 @@ mod tests {
             ==22856== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0";
 
         let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
-            process::Output::new(ExitStatus::Ok, "", noop_err),
+            process::Output::new(ExitStatus::Ok, "", pwd_err),
         )])));
 
         let executor = MockProcessExecutor::new(data.clone());
