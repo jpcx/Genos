@@ -6,7 +6,7 @@ use genos::{
     output::{self, Content, RichTextMaker, Section, StatusUpdates, Update},
     points::PointQuantity,
     process::{self, Command, ExitStatus, ProcessExecutor},
-    stage::{StageResult, StageStatus},
+    stage::StageResult,
     Executor,
 };
 
@@ -46,7 +46,7 @@ impl<E: ProcessExecutor> Executor for Compile<E> {
     async fn run(&self, ws: &Path) -> Result<Self::Output> {
         let mut section = Section::new("Compile");
         let mut status_updates = StatusUpdates::default();
-        let mut update = Update::new("Compiling submission");
+        let mut update = Update::new_pass("Compiling submission");
 
         let output = Command::new("make")
             .args(self.args.clone())
@@ -56,9 +56,7 @@ impl<E: ProcessExecutor> Executor for Compile<E> {
 
         match &output.status {
             ExitStatus::Ok => {
-                update.set_status(output::Status::Pass);
                 status_updates.add_update(update);
-
                 section.add_content(status_updates);
 
                 Ok(StageResult::new_continue(PointQuantity::zero())
@@ -66,7 +64,7 @@ impl<E: ProcessExecutor> Executor for Compile<E> {
             }
 
             _ => {
-                update.set_status(output::Status::Fail);
+                update.set_fail(PointQuantity::FullPoints);
                 update.set_notes(self.get_compile_feedback(output));
                 status_updates.add_update(update);
 
@@ -85,6 +83,7 @@ mod tests {
 
     use genos::{
         output::Contains,
+        stage::StageStatus,
         test_util::{MockExecutorInner, MockProcessExecutor},
     };
 

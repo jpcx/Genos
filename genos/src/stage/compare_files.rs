@@ -250,7 +250,7 @@ where
 
         for compare_config in &self.config.compares {
             debug!("Running compare {:?}", compare_config);
-            let mut update = Update::new(format!(
+            let mut update = Update::new_pass(format!(
                 "Comparing {} ({})",
                 compare_config.student_file, compare_config.compare_type
             ));
@@ -259,8 +259,7 @@ where
             // first check to see if the student file exists
             if !student_file.exists() {
                 debug!("Could not find student file: {}", student_file.display());
-                update.set_status(output::Status::Fail);
-                update.set_points_lost(compare_config.points);
+                update.set_fail(compare_config.points);
                 update.set_notes(format!(
                     "Could not find file {} in root of workspace",
                     compare_config.student_file
@@ -275,14 +274,12 @@ where
             // if the file exists, then run the compare. Get the correct comparator from the
             // comparator factory.
             if self.match_any(compare_config, ws).await? {
-                update.set_status(output::Status::Pass);
                 compare_status_updates.add_update(update);
                 continue;
             }
 
             // if we didn't find a match, then we need to give the student feedback
-            update.set_status(output::Status::Fail);
-            update.set_points_lost(compare_config.points);
+            update.set_fail(compare_config.points);
             points_lost += compare_config.points;
 
             let finder = self.fs_creator.create(ws);

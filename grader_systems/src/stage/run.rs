@@ -149,9 +149,7 @@ where
 
         if !res.status.completed() {
             run_status_updates.add_update(
-                Update::new("Running program")
-                    .status(output::Status::Fail)
-                    .points_lost(PointQuantity::FullPoints)
+                Update::new_fail("Running program", PointQuantity::FullPoints)
                     .notes(self.get_failed_run_notes(&res)),
             );
             section.add_content(run_status_updates);
@@ -161,7 +159,7 @@ where
             ));
         }
 
-        run_status_updates.add_update(Update::new("Running program").status(output::Status::Pass));
+        run_status_updates.add_update(Update::new_pass("Running program"));
 
         if let Some(rc_config) = &self.config.return_code {
             let rc = res
@@ -171,8 +169,7 @@ where
 
             if rc != rc_config.expected {
                 run_status_updates.add_update(
-                    Update::new("Checking return code")
-                        .status(output::Status::Fail)
+                    Update::new_fail("Checking return code", PointQuantity::FullPoints)
                         .notes(format!("Expected {}, but found {}", rc_config.expected, rc)),
                 );
                 section.add_content(run_status_updates);
@@ -181,7 +178,7 @@ where
                     .with_output(output::Output::new().section(section)));
             }
 
-            run_status_updates.add_update(Update::new("Checking return code"));
+            run_status_updates.add_update(Update::new_pass("Checking return code"));
             section.add_content(run_status_updates);
         }
 

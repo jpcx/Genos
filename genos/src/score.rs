@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign},
+};
 
 use crate::points::Points;
 
@@ -50,6 +53,12 @@ impl Score {
             (self.received - points).max(Points::new(0)),
             self.possible(),
         )
+    }
+}
+
+impl Display for Score {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.possible, self.received)
     }
 }
 

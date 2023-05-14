@@ -2,6 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
 
+pub mod formatter;
 pub mod fs;
 pub mod genos;
 pub mod gs;
