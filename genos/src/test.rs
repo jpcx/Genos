@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fmt::Display, path::Path, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -9,11 +9,10 @@ use crate::{
     points::{PointQuantity, Points},
     score::Score,
     stage::{StageResult, StageStatus},
-    tid::TestId,
     Executor,
 };
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TestStatus {
     Pass(Score),
     Fail(Score),
@@ -40,17 +39,12 @@ impl Into<TestResult> for TestStatus {
     }
 }
 
+#[derive(Clone)]
 pub struct TestResult {
     pub status: TestStatus,
+    // TODO:  Wrap the output in something cloneable that doesn't clone all the strings... output
+    // could be huge
     pub output: Output,
-}
-
-impl std::fmt::Debug for TestResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TestResult")
-            .field("status", &self.status)
-            .finish()
-    }
 }
 
 impl TestResult {
@@ -72,7 +66,7 @@ impl TestResult {
         }
     }
 
-    fn lose_full_points(&mut self) {
+    pub fn lose_full_points(&mut self) {
         let max_points = self.status.possible_points();
         self.status = TestStatus::Fail(Score::zero_points(max_points));
     }
@@ -85,11 +79,16 @@ impl TestResult {
     }
 }
 
+impl std::fmt::Debug for TestResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TestResult")
+            .field("status", &self.status)
+            .finish()
+    }
+}
+
 #[async_trait]
 pub trait Test: Executor<Output = TestResult> {
-    /// the test id for this testcase
-    fn id(&self) -> TestId;
-
     /// the number of points this test is worth
     fn points(&self) -> Points;
 }
@@ -99,15 +98,13 @@ pub trait Test: Executor<Output = TestResult> {
 /// stage is expected to know how to execute its own stage without any more information than where
 /// to execute.
 pub struct GenosTest {
-    tid: TestId,
     points: Points,
     stages: Vec<Box<dyn Executor<Output = StageResult>>>,
 }
 
 impl GenosTest {
-    pub fn new(tid: TestId, points: Points) -> Self {
+    pub fn new(points: Points) -> Self {
         Self {
-            tid,
             points,
             stages: Vec::new(),
         }
@@ -189,9 +186,6 @@ impl Executor for GenosTest {
 
 #[async_trait]
 impl Test for GenosTest {
-    fn id(&self) -> TestId {
-        self.tid
-    }
     fn points(&self) -> Points {
         self.points
     }
@@ -221,7 +215,7 @@ mod tests {
             }
         }
 
-        let _test = GenosTest::new(TestId::new(0), Points::new(0.0))
+        let _test = GenosTest::new(Points::new(0.0))
             .stage(MockStage)
             .stage(MockStage);
     }
@@ -262,7 +256,7 @@ mod tests {
             Ok(StageResult::new_continue(PointQuantity::zero())),
         ]);
 
-        let test = GenosTest::new(TestId::new(0), Points::new(4)).stages(stages);
+        let test = GenosTest::new(Points::new(4)).stages(stages);
         let res = test.run(&PathBuf::new()).await.unwrap();
         assert_eq!(res.status, TestStatus::Pass(Score::new(4, 4)));
     }
@@ -277,7 +271,7 @@ mod tests {
 
         let last_stage_count = stages[2].call_count.clone();
 
-        let test = GenosTest::new(TestId::new(0), Points::new(4)).stages(stages);
+        let test = GenosTest::new(Points::new(4)).stages(stages);
 
         let res = test.run(&PathBuf::new()).await.unwrap();
         assert!(matches!(res.status, TestStatus::Fail(_)));
@@ -294,7 +288,7 @@ mod tests {
 
         let last_stage_count = stages[2].call_count.clone();
 
-        let test = GenosTest::new(TestId::new(0), Points::new(4)).stages(stages);
+        let test = GenosTest::new(Points::new(4)).stages(stages);
 
         test.run(&PathBuf::new()).await.unwrap_err();
         assert_eq!(last_stage_count.load(Ordering::Relaxed), 0);
