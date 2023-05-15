@@ -9,7 +9,6 @@ use genos::{
     process::{
         self, is_program_in_path, Command, ExitStatus, ProcessExecutor, SignalType, StdinPipe,
     },
-    score::Score,
     stage::{StageResult, StageStatus},
     Executor,
 };
@@ -18,20 +17,22 @@ use tracing::debug;
 // give a default timeout of 1 minute. Number chosen arbitrarily.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 
+#[derive(Default, Clone)]
 pub struct RunConfig {
-    args: Vec<String>,
-    executable: String,
-    timeout: Option<Duration>,
-    stdout: Option<String>,
-    stderr: Option<String>,
-    stdin: Option<String>,
-    return_code: Option<ReturnCodeConfig>,
-    disable_garbage_memory: Option<bool>,
+    pub args: Vec<String>,
+    pub executable: String,
+    pub timeout: Option<Duration>,
+    pub stdout: Option<String>,
+    pub stderr: Option<String>,
+    pub stdin: Option<String>,
+    pub return_code: Option<ReturnCodeConfig>,
+    pub disable_garbage_memory: Option<bool>,
 }
 
+#[derive(Clone)]
 pub struct ReturnCodeConfig {
-    expected: i32,
-    points: PointQuantity,
+    pub expected: i32,
+    pub points: PointQuantity,
 }
 
 pub struct Run<E> {
@@ -95,18 +96,6 @@ where
             _ => unreachable!(),
         }
     }
-
-    fn check_return_code(
-        &self,
-        rc_config: &ReturnCodeConfig,
-        status: &ExitStatus,
-    ) -> (Update, Score) {
-        let rc = status.exit_code().expect(
-            "Expected function to get a status from a command which completed successfully",
-        );
-
-        todo!()
-    }
 }
 
 fn get_signal_feedback(signal: &SignalType) -> output::Content {
@@ -142,6 +131,7 @@ where
     async fn run(&self, ws: &Path) -> Result<Self::Output> {
         let mut section = Section::new("Run Program");
         let mut run_status_updates = StatusUpdates::default();
+        let mut points_lost = PointQuantity::zero();
         debug!("running program");
 
         let executable = ws.join(&self.config.executable);
@@ -159,9 +149,7 @@ where
 
         if !res.status.completed() {
             run_status_updates.add_update(
-                Update::new("Running program")
-                    .status(output::Status::Fail)
-                    .points_lost(PointQuantity::FullPoints)
+                Update::new_fail("Running program", PointQuantity::FullPoints)
                     .notes(self.get_failed_run_notes(&res)),
             );
             section.add_content(run_status_updates);
@@ -171,12 +159,265 @@ where
             ));
         }
 
-        run_status_updates.add_update(Update::new("Running program").status(output::Status::Pass));
+        run_status_updates.add_update(Update::new_pass("Running program"));
 
         if let Some(rc_config) = &self.config.return_code {
-            let (update, score) = self.check_return_code(rc_config, &res.status);
+            let rc = res
+                .status
+                .exit_code()
+                .expect("Expected function to get a status from a command which completed");
+
+            if rc != rc_config.expected {
+                run_status_updates.add_update(
+                    Update::new_fail("Checking return code", PointQuantity::FullPoints)
+                        .notes(format!("Expected {}, but found {}", rc_config.expected, rc)),
+                );
+                section.add_content(run_status_updates);
+                points_lost += rc_config.points;
+                return Ok(StageResult::new_continue(points_lost)
+                    .with_output(output::Output::new().section(section)));
+            }
+
+            run_status_updates.add_update(Update::new_pass("Checking return code"));
+            section.add_content(run_status_updates);
         }
 
-        todo!();
+        Ok(StageResult::new_continue(points_lost)
+            .with_output(output::Output::new().section(section)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use genos::{
+        fs::filepath,
+        output::Contains,
+        test_util::{MockDir, MockProcessExecutor},
+    };
+
+    use super::*;
+
+    #[tokio::test]
+    async fn executable_does_not_exist() {
+        let config = RunConfig {
+            executable: "bin/exec".to_string(),
+            ..Default::default()
+        };
+        let ws = tempfile::tempdir().unwrap();
+        let executor = MockProcessExecutor::with_responses([]);
+
+        Run::new(executor, config).run(ws.path()).await.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn executor_timeout() {
+        let config = RunConfig {
+            executable: "exec".to_string(),
+            ..Default::default()
+        };
+        let ws = MockDir::new().file(("exec", "content"));
+        let executor = MockProcessExecutor::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Timeout(Duration::from_millis(10))),
+        )]);
+
+        let res = Run::new(executor, config)
+            .run(ws.root.path())
+            .await
+            .unwrap();
+
+        assert_eq!(res.status, StageStatus::UnrecoverableFailure);
+        assert!(res.output.unwrap().contains("program timed out"));
+    }
+
+    #[tokio::test]
+    async fn executor_abort() {
+        let config = RunConfig {
+            executable: "exec".to_string(),
+            ..Default::default()
+        };
+        let ws = MockDir::new().file(("exec", "content"));
+        let executor = MockProcessExecutor::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Signal(SignalType::Abort)),
+        )]);
+
+        let res = Run::new(executor, config)
+            .run(ws.root.path())
+            .await
+            .unwrap();
+
+        assert_eq!(res.status, StageStatus::UnrecoverableFailure);
+        assert!(res.output.unwrap().contains("abort signal"));
+    }
+
+    #[tokio::test]
+    async fn executor_segfault() {
+        let config = RunConfig {
+            executable: "exec".to_string(),
+            ..Default::default()
+        };
+        let ws = MockDir::new().file(("exec", "content"));
+        let executor = MockProcessExecutor::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Signal(SignalType::SegFault)),
+        )]);
+
+        let res = Run::new(executor, config)
+            .run(ws.root.path())
+            .await
+            .unwrap();
+
+        assert_eq!(res.status, StageStatus::UnrecoverableFailure);
+        assert!(res.output.unwrap().contains("segmentation fault"));
+    }
+
+    #[tokio::test]
+    async fn success_no_return_code() {
+        let config = RunConfig {
+            executable: "exec".to_string(),
+            ..Default::default()
+        };
+        let ws = MockDir::new().file(("exec", "content"));
+        let executor = MockProcessExecutor::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Failure(1)),
+        )]);
+
+        let res = Run::new(executor, config)
+            .run(ws.root.path())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::zero()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn wrong_return_code() {
+        let config = RunConfig {
+            executable: "exec".to_string(),
+            return_code: Some(ReturnCodeConfig {
+                expected: 0,
+                points: PointQuantity::FullPoints,
+            }),
+            ..Default::default()
+        };
+        let ws = MockDir::new().file(("exec", "content"));
+        let executor = MockProcessExecutor::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Failure(1)),
+        )]);
+
+        let res = Run::new(executor, config)
+            .run(ws.root.path())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::FullPoints,
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn correct_return_code() {
+        let config = RunConfig {
+            executable: "exec".to_string(),
+            return_code: Some(ReturnCodeConfig {
+                expected: 1,
+                points: PointQuantity::FullPoints,
+            }),
+            ..Default::default()
+        };
+        let ws = MockDir::new().file(("exec", "content"));
+        let executor = MockProcessExecutor::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Failure(1)),
+        )]);
+
+        let res = Run::new(executor, config)
+            .run(ws.root.path())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            res.status,
+            StageStatus::Continue {
+                points_lost: PointQuantity::zero(),
+            }
+        );
+    }
+
+    #[test]
+    fn get_run_command_default() {
+        let config = RunConfig {
+            executable: "bin/exec".to_string(),
+            ..Default::default()
+        };
+        let ws = tempfile::tempdir().unwrap();
+        let executor = MockProcessExecutor::with_responses([]);
+
+        let run = Run::new(executor, config);
+
+        let cmd = run.get_run_command(ws.path());
+        let expected = Command::new("bin/exec");
+        assert_eq!(cmd.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn get_run_command_pipes() {
+        let config = RunConfig {
+            executable: "bin/exec".to_string(),
+            stderr: Some("stderr".to_string()),
+            stdin: Some("stdin".to_string()),
+            stdout: Some("stdout".to_string()),
+            ..Default::default()
+        };
+        let ws = tempfile::tempdir().unwrap();
+        let executor = MockProcessExecutor::with_responses([]);
+
+        let run = Run::new(executor, config);
+
+        let cmd = run.get_run_command(ws.path());
+        let expected = Command::new("bin/exec")
+            .stdout("stdout")
+            .stdin(StdinPipe::Path("stdin".into()))
+            .stderr("stderr");
+        assert_eq!(cmd.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn get_run_command_valgrind() {
+        let mock_dir = MockDir::new().file(("valgrind", ""));
+
+        // fake that we have valgrind in our path
+        let valgrind_path = mock_dir.root.path();
+        let mut path = env::var("PATH").unwrap();
+        path += format!(":{}", filepath(valgrind_path).unwrap()).as_str();
+        env::set_var("PATH", path);
+
+        let config = RunConfig {
+            executable: "bin/exec".to_string(),
+            args: vec!["-t".to_string(), "-u".to_string()],
+            ..Default::default()
+        };
+        let ws = tempfile::tempdir().unwrap();
+        let executor = MockProcessExecutor::with_responses([]);
+
+        let run = Run::new(executor, config);
+
+        let cmd = run.get_run_command(ws.path());
+        let expected = Command::new("valgrind")
+            .arg("--log-file=valgrind.log")
+            .arg("--malloc-fill=0xFF")
+            .arg("--free-fill=0xAA")
+            .arg("bin/exec")
+            .arg("-t")
+            .arg("-u");
+
+        assert_eq!(cmd.to_string(), expected.to_string());
     }
 }

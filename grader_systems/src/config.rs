@@ -1,7 +1,6 @@
 use genos::{
-    points::Points,
+    gs::TestDescription,
     stage::{compare_files::ComparesConfig, import_files::ImportConfig},
-    tid::TestId,
 };
 
 use crate::stage::{compile::CompileConfig, run::RunConfig, valgrind::ValgrindConfig};
@@ -16,9 +15,8 @@ pub struct Config {
 }
 
 pub struct TestConfig {
-    pub tid: TestId,
+    pub description: TestDescription,
     pub test_type: TestType,
-    pub points: Points,
     pub compile: CompileConfig,
     pub run: RunConfig,
     pub compare_files: Option<ComparesConfig>,
