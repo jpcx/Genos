@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Display, rc::Rc};
+use std::{cell::RefCell, fmt::Display, rc::Rc, sync::Arc};
 
 use crate::{formatter::Formatter, points::PointQuantity, writer::Transform};
 
@@ -202,14 +202,15 @@ impl Into<Content> for StatusUpdates {
 
 #[derive(Default, Clone)]
 pub struct RichText {
-    text: String,
+    // wrap the text in an Arc so that any clones of the RichText struct are very light.
+    text: Arc<String>,
     code: bool,
 }
 
 impl RichText {
     pub fn new(text: impl Into<String>) -> Self {
         Self {
-            text: text.into(),
+            text: Arc::new(text.into()),
             ..Default::default()
         }
     }

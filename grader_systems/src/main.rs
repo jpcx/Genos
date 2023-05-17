@@ -14,6 +14,7 @@ use genos::{
 use stage::{compile::Compile, run::Run};
 
 mod config;
+mod context;
 mod stage;
 
 struct TestResourceLocator;
