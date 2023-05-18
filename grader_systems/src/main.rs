@@ -44,7 +44,7 @@ fn build_testcase(config: &TestConfig) -> Result<GenosTest> {
             // 4. compare (done)
             // 5. valgrind run
             // 6. run with memory limit
-            let mut test = GenosTest::new(config.description.points);
+            let mut test = GenosTest::new(config.description.total_points);
             if let Some(import_files) = &config.import_files {
                 test.add_stage(ImportFiles::new(import_files, &TestResourceLocator)?)
             }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{points::Points, test, tid::TestId};
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub enum Visibility {
     Hidden,
     Visible,
@@ -37,12 +37,12 @@ pub trait Description {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TestDescription {
     pub name: String,
     pub description: String,
     pub test_id: TestId,
-    pub points: Points,
+    pub total_points: Points,
     pub visibility: Visibility,
     pub tags: Option<Vec<String>>,
 }

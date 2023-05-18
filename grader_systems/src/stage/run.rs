@@ -12,16 +12,17 @@ use genos::{
     stage::{StageResult, StageStatus},
     Executor,
 };
+use serde::Deserialize;
 use tracing::debug;
 
 // give a default timeout of 1 minute. Number chosen arbitrarily.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct RunConfig {
     pub args: Vec<String>,
     pub executable: String,
-    pub timeout: Option<Duration>,
+    pub timeout_sec: Option<u64>,
     pub stdout: Option<String>,
     pub stderr: Option<String>,
     pub stdin: Option<String>,
@@ -29,7 +30,13 @@ pub struct RunConfig {
     pub disable_garbage_memory: Option<bool>,
 }
 
-#[derive(Clone)]
+impl RunConfig {
+    pub fn timeout(&self) -> Option<Duration> {
+        self.timeout_sec.map(|val| Duration::from_secs(val))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct ReturnCodeConfig {
     pub expected: i32,
     pub points: PointQuantity,
@@ -81,7 +88,7 @@ where
             cmd.set_stdin(StdinPipe::Path(stdin_file.into()));
         }
 
-        cmd.set_timeout(self.config.timeout.unwrap_or(DEFAULT_TIMEOUT));
+        cmd.set_timeout(self.config.timeout().unwrap_or(DEFAULT_TIMEOUT));
         cmd.set_cwd(ws);
 
         cmd

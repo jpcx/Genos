@@ -179,6 +179,7 @@ impl<'de> Deserialize<'de> for Points {
             where
                 E: de::Error,
             {
+                validate_points_value(v as f64).map_err(de::Error::custom)?;
                 self.visit_f64(v as f64)
             }
 
@@ -215,6 +216,13 @@ pub enum PointQuantity {
 impl PointQuantity {
     pub fn zero() -> Self {
         Self::Partial(0.into())
+    }
+
+    pub fn is_full_points(&self) -> bool {
+        match self {
+            Self::FullPoints => true,
+            _ => false,
+        }
     }
 }
 
