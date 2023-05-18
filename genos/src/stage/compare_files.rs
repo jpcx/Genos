@@ -18,18 +18,18 @@ use crate::{
     Executor,
 };
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ComparesConfig {
-    compares: Vec<CompareConfig>,
+    pub compares: Vec<CompareConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct CompareConfig {
-    expected: Vec<String>,
-    student_file: String,
-    compare_type: CompareType,
-    points: PointQuantity,
-    show_output: bool,
+    pub expected: Vec<String>,
+    pub student_file: String,
+    pub compare_type: CompareType,
+    pub points: PointQuantity,
+    pub show_output: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Clone)]

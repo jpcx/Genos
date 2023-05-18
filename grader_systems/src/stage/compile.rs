@@ -9,8 +9,9 @@ use genos::{
     stage::StageResult,
     Executor,
 };
+use serde::Deserialize;
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct CompileConfig {
     /// We always require a makefile to be present in the ws root. The args in the config are
     /// passed directly to make.

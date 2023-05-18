@@ -42,8 +42,6 @@ impl Into<TestResult> for TestStatus {
 #[derive(Clone)]
 pub struct TestResult {
     pub status: TestStatus,
-    // TODO:  Wrap the output in something cloneable that doesn't clone all the strings... output
-    // could be huge
     pub output: Output,
 }
 

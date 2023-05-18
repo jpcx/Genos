@@ -42,7 +42,7 @@ impl SystemStageExecutor for ImportFiles {
     }
 }
 
-#[derive(Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 pub struct ImportConfig {
     files: Vec<String>,
 }
