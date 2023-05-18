@@ -27,7 +27,13 @@ pub struct Genos {
     setup: Vec<Arc<dyn TestRequest>>,
     tests: Vec<Arc<dyn TestRequest>>,
     writers: Vec<Arc<dyn ResultsWriter>>,
+    // add a way to prepare a workspace
+    //  - This will be the mechanism which will copy over files from staging directory into the
+    //    workspace directory
+    //
     // add filter
+    //  - filter will control which tests are run.
+    //      - takes into account cli args, groupings, etc
 }
 
 impl Genos {

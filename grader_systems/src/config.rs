@@ -14,11 +14,10 @@ pub enum TestType {
     Diff,
 }
 
-pub struct Config {
+pub struct HwConfig {
+    pub class: String,
     pub hw_name: String,
     pub testcases: Vec<TestConfig>,
-    // allow for named grouping of tests which all conform to a theme. For example, you could run
-    // all tests marked as diff-test-short, or brians-tests
     pub groups: Vec<TestGroup>,
 }
 
