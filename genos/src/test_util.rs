@@ -3,15 +3,17 @@ use std::{
     fs::File,
     io::Write,
     path::{Path, PathBuf},
+    result::Result as StdResult,
     sync::{Arc, Mutex},
 };
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+
 use tempfile::TempDir;
 
 use crate::{
-    fs::ResourceLocator,
+    fs::{self, ResourceLocator},
     process::{self, Command, ExitStatus, ProcessExecutor},
 };
 
@@ -22,7 +24,10 @@ where
     C: AsRef<[u8]>,
 {
     let path = path.as_ref().join(name);
-    let mut file = File::create(&path).unwrap();
+    let mut file = File::create(&path).expect(&format!(
+        "Expected dir {} to exist",
+        path.parent().unwrap().display()
+    ));
     file.write_all(contents.as_ref()).unwrap();
 
     path
@@ -30,31 +35,44 @@ where
 
 pub struct MockDir {
     pub root: TempDir,
-    pub files: HashMap<String, PathBuf>,
 }
 
 impl MockDir {
     pub fn new() -> Self {
         Self {
             root: tempfile::tempdir().unwrap(),
-            files: HashMap::default(),
         }
     }
 
-    pub fn file<T: Into<MockFile>>(mut self, file: T) -> Self {
+    pub fn file<T: Into<MockFile>>(self, file: T) -> Self {
         let file = file.into();
-        let path = create_temp_file_in(self.root.path(), &file.name, &file.contents);
-        self.files.insert(file.name, path);
+        create_temp_file_in(self.root.path(), &file.name, &file.contents);
         self
+    }
+
+    pub fn dir<T: Into<MockDir>, N: AsRef<std::path::Path>>(self, name: N, dir: T) -> Self {
+        let new_dir = dir.into();
+        let new_dir = new_dir.root.into_path();
+        let dest = self.root.path().join(name);
+        std::fs::rename(new_dir, dest).unwrap();
+        self
+    }
+
+    pub fn path_from_root<P: AsRef<Path>>(&self, relative_path: P) -> PathBuf {
+        self.root.path().join(relative_path)
     }
 }
 
+// This should really search all dirctories and files recursively. Right now it only searches the
+// top level
 impl ResourceLocator for MockDir {
-    fn find(&self, name: &String) -> Result<PathBuf> {
-        self.files
-            .get(name)
-            .cloned()
-            .ok_or(anyhow!("Could not find test file"))
+    fn find(&self, name: &String) -> StdResult<PathBuf, fs::Error> {
+        let file = self.root.path().join(name);
+        if !file.exists() {
+            return Err(fs::Error::NotFound);
+        }
+
+        Ok(file)
     }
 }
 

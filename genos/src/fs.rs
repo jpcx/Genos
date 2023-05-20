@@ -1,16 +1,24 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
-use mockall::automock;
+use std::result::Result as StdResult;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("File not found")]
+    NotFound,
+
+    #[error("TestId not recognized")]
+    UnknownTestId,
+}
 
 /// Responsible for locating a file resource for a test given a filename,
-#[automock]
 pub trait ResourceLocator: Send + Sync {
-    fn find(&self, name: &String) -> Result<PathBuf>;
+    fn find(&self, name: &String) -> StdResult<PathBuf, Error>;
 }
 
 /// can create a resource locator based on the ws
-#[automock]
 pub trait ResourceLocatorCreator {
     fn create(&self, ws: &Path) -> Box<dyn ResourceLocator>;
 }

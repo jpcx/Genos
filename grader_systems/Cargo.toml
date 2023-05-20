@@ -18,3 +18,5 @@ tracing-subscriber = {version = "0.3", default-features = false, features = ["en
 argh = "0.1.10"
 serde_yaml = "0.9"
 serde = { version = "1.0", features = ["derive"] }
+thiserror = "1"
+glob = "0.3"

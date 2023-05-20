@@ -1,9 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    result::Result as StdResult,
+};
 
 use anyhow::Result;
 use config::{TestConfig, TestType};
 use genos::{
-    fs::{ResourceLocator, ResourceLocatorCreator},
+    fs::{self, ResourceLocator, ResourceLocatorCreator},
     gs::running_in_gs,
     process::{is_program_in_path, ShellExecutor},
     stage::{
@@ -22,7 +25,7 @@ mod stage;
 struct TestResourceLocator;
 
 impl ResourceLocator for TestResourceLocator {
-    fn find(&self, name: &String) -> Result<PathBuf> {
+    fn find(&self, _name: &String) -> StdResult<PathBuf, fs::Error> {
         todo!();
     }
 }
@@ -30,7 +33,7 @@ impl ResourceLocator for TestResourceLocator {
 struct TestResourceLocatorCreator;
 
 impl ResourceLocatorCreator for TestResourceLocatorCreator {
-    fn create(&self, ws: &Path) -> Box<dyn ResourceLocator> {
+    fn create(&self, _ws: &Path) -> Box<dyn ResourceLocator> {
         Box::new(TestResourceLocator)
     }
 }
