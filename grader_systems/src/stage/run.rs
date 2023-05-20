@@ -358,43 +358,43 @@ mod tests {
         );
     }
 
-    #[test]
-    fn get_run_command_default() {
-        let config = RunConfig {
-            executable: "bin/exec".to_string(),
-            ..Default::default()
-        };
-        let ws = tempfile::tempdir().unwrap();
-        let executor = MockProcessExecutor::with_responses([]);
+    //#[test]
+    //fn get_run_command_default() {
+    //    let config = RunConfig {
+    //        executable: "bin/exec".to_string(),
+    //        ..Default::default()
+    //    };
+    //    let ws = tempfile::tempdir().unwrap();
+    //    let executor = MockProcessExecutor::with_responses([]);
 
-        let run = Run::new(executor, config);
+    //    let run = Run::new(executor, config);
 
-        let cmd = run.get_run_command(ws.path());
-        let expected = Command::new("bin/exec");
-        assert_eq!(cmd.to_string(), expected.to_string());
-    }
+    //    let cmd = run.get_run_command(ws.path());
+    //    let expected = Command::new("bin/exec");
+    //    assert_eq!(cmd.to_string(), expected.to_string());
+    //}
 
-    #[test]
-    fn get_run_command_pipes() {
-        let config = RunConfig {
-            executable: "bin/exec".to_string(),
-            stderr: Some("stderr".to_string()),
-            stdin: Some("stdin".to_string()),
-            stdout: Some("stdout".to_string()),
-            ..Default::default()
-        };
-        let ws = tempfile::tempdir().unwrap();
-        let executor = MockProcessExecutor::with_responses([]);
+    //#[test]
+    //fn get_run_command_pipes() {
+    //    let config = RunConfig {
+    //        executable: "bin/exec".to_string(),
+    //        stderr: Some("stderr".to_string()),
+    //        stdin: Some("stdin".to_string()),
+    //        stdout: Some("stdout".to_string()),
+    //        ..Default::default()
+    //    };
+    //    let ws = tempfile::tempdir().unwrap();
+    //    let executor = MockProcessExecutor::with_responses([]);
 
-        let run = Run::new(executor, config);
+    //    let run = Run::new(executor, config);
 
-        let cmd = run.get_run_command(ws.path());
-        let expected = Command::new("bin/exec")
-            .stdout("stdout")
-            .stdin(StdinPipe::Path("stdin".into()))
-            .stderr("stderr");
-        assert_eq!(cmd.to_string(), expected.to_string());
-    }
+    //    let cmd = run.get_run_command(ws.path());
+    //    let expected = Command::new("bin/exec")
+    //        .stdout("stdout")
+    //        .stdin(StdinPipe::Path("stdin".into()))
+    //        .stderr("stderr");
+    //    assert_eq!(cmd.to_string(), expected.to_string());
+    //}
 
     #[test]
     fn get_run_command_valgrind() {

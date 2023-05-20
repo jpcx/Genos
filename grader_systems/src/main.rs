@@ -12,7 +12,7 @@ use genos::{
     },
     test::GenosTest,
 };
-use stage::{compile::Compile, run::Run};
+use stage::{compile::Compile, run::Run, valgrind::Valgrind};
 
 mod config;
 mod context;
@@ -65,13 +65,26 @@ fn build_testcase(config: &TestConfig) -> Result<GenosTest> {
                 compare_files.clone(),
             ));
 
-            if let Some(_) = &config.valgrind {
-                if running_in_gs() || is_program_in_path("valgrind") {
-                    todo!();
-                    //test.add_stage(Valgrind::new(...));
-                } else {
+            if is_program_in_path("valgrind") {
+                if let Some(conf) = config.valgrind.clone() {
+                    test.add_stage(Valgrind::new(
+                        ShellExecutor,
+                        conf,
+                        config.run.executable.clone(),
+                        config.run.args.clone(),
+                        config.run.stdin.clone(),
+                        config.run.timeout().clone(),
+                    ));
+                }
+            } else {
+                assert!(
+                    !running_in_gs(),
+                    "Running in gradescope, but valgrind not found!"
+                );
+
+                if let Some(_) = &config.valgrind {
                     tracing::warn!(
-                        "cannot run valgrind stage on local instance \
+                        "Cannot run valgrind stage on local instance \
                          without valgrind installed! skipping stage"
                     );
                 }

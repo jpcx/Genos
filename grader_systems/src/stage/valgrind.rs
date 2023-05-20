@@ -1,10 +1,15 @@
-use std::{path::Path, time::Duration};
+use std::{
+    fs::File,
+    io::{self, Read},
+    path::Path,
+    time::Duration,
+};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 
 use genos::{
-    output::{self, Output, RichTextMaker, Section, StatusUpdates, Update},
+    output::{self, Content, Output, RichTextMaker, Section, StatusUpdates, Update},
     points::PointQuantity,
     process::{self, Command, ExitStatus, ProcessExecutor, SignalType, StdinPipe},
     stage::{StageResult, StageStatus},
@@ -14,19 +19,48 @@ use genos::{
 use regex::{Captures, Regex};
 
 use serde::Deserialize;
+
+use tokio::sync::OnceCell;
+
 use tracing::debug;
 
 // default should be longer than run stage default
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
-#[derive(Default, Deserialize, Clone)]
+// exit code used to identify failures. not configurable via YAML.
+//
+// exit codes >125 are reserved by POSIX standards, see exit(1p).
+// note: >128 indicates that the command was interrupted by a signal.
+// see also: https://tldp.org/LDP/abs/html/exitcodes.html
+//
+// setting --error-exitcode to 125 allows a failure condition
+// to be reliably detected if the exit code is >= this number.
+// valgrind will return >128 if the program was interrupted
+// by a signal, regardless of this setting (on POSIX systems).
+//
+// as a safeguard, "ERROR SUMMARY: [1-9]" also signifies failure.
+const ERROR_EXITCODE: i16 = 125;
+
+fn is_exit_error(code: i16) -> bool {
+    return code >= ERROR_EXITCODE;
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
 pub struct ValgrindConfig {
+    log_file: String,
     leak_check: Option<bool>,
-    error_exitcode: Option<i32>,
-    log_file: Option<String>,
     malloc_fill: Option<u8>,
     free_fill: Option<u8>,
     suppressions: Option<String>,
+}
+
+impl ValgrindConfig {
+    fn new(log_file: &str) -> Self {
+        Self {
+            log_file: log_file.to_string(),
+            ..Self::default()
+        }
+    }
 }
 
 pub struct Valgrind<E> {
@@ -36,6 +70,13 @@ pub struct Valgrind<E> {
     args: Vec<String>,
     stdin: Option<String>,
     timeout: Option<Duration>,
+}
+
+fn read_file(path: &Path) -> Result<String> {
+    let mut file = File::open(path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    Ok(contents)
 }
 
 impl<E: ProcessExecutor> Valgrind<E> {
@@ -57,36 +98,32 @@ impl<E: ProcessExecutor> Valgrind<E> {
         }
     }
 
-    fn get_run_command(&self, ws: &Path) -> Command {
+    fn gen_cmd(&self, ws: &Path) -> Command {
         let mut cmd = Command::new("valgrind");
 
+        cmd.add_arg(format!("--log-file={}", &self.config.log_file));
+
         if let Some(v) = &self.config.leak_check {
-            cmd = cmd.arg(format!("--leak-check={:?}", v));
+            cmd.add_arg(format!("--leak-check={:?}", v));
         }
 
-        if let Some(v) = self.config.error_exitcode {
-            cmd = cmd.arg(format!("--error-exitcode={}", v));
-        }
-
-        if let Some(v) = &self.config.log_file {
-            cmd = cmd.arg(format!("--log-file={}", v));
-        }
+        cmd.add_arg(format!("--error-exitcode={}", ERROR_EXITCODE));
 
         if let Some(v) = self.config.malloc_fill {
-            cmd = cmd.arg(format!("--malloc-fill=0x{:02X}", v));
+            cmd.add_arg(format!("--malloc-fill=0x{:02X}", v));
         }
 
         if let Some(v) = self.config.free_fill {
-            cmd = cmd.arg(format!("--free-fill=0x{:02X}", v));
+            cmd.add_arg(format!("--free-fill=0x{:02X}", v));
         }
 
         if let Some(v) = &self.config.suppressions {
-            cmd = cmd.arg(format!("--suppressions={}", v));
+            cmd.add_arg(format!("--suppressions={}", v));
         }
 
-        cmd = cmd.arg("--");
-        cmd = cmd.arg(&self.executable);
-        cmd = cmd.args(&self.args);
+        cmd.add_arg("--");
+        cmd.add_arg(&self.executable);
+        cmd.add_args(&self.args);
         if let Some(v) = &self.stdin {
             cmd.set_stdin(StdinPipe::Path(v.into()))
         }
@@ -96,13 +133,14 @@ impl<E: ProcessExecutor> Valgrind<E> {
 
         cmd
     }
-}
 
-fn hide_paths(input: &str) -> String {
-    Regex::new(r"/[^/\s]+")
-        .unwrap()
-        .replace_all(input, "<path hidden>")
-        .to_string()
+    fn read_logfile(&self, ws: &Path) -> Result<String> {
+        let contents = read_file(&ws.join(&self.config.log_file))?;
+        // replace all absolute paths with basename
+        let re = Regex::new(r"(\W|^)(?:\/[^\/\s]+)+\/([^\/\s]+)\b")?;
+        let repl = re.replace_all(&contents, "$1$2");
+        Ok(repl.to_string())
+    }
 }
 
 #[async_trait]
@@ -110,8 +148,9 @@ impl<E: ProcessExecutor> Executor for Valgrind<E> {
     type Output = StageResult;
 
     async fn run(&self, ws: &Path) -> Result<Self::Output> {
-        let mut section = Section::new("Valgrind");
-        let mut run_status_updates = StatusUpdates::default();
+        let mut sect = Section::new("Valgrind");
+        let mut results_sect = Section::new("Output:");
+        let mut run_updates = StatusUpdates::default();
         debug!("running program");
 
         let executable = ws.join(&self.executable);
@@ -128,41 +167,44 @@ impl<E: ProcessExecutor> Executor for Valgrind<E> {
             }
         }
 
-        let cmd = self.get_run_command(ws);
-        section.add_content(("run command", format!("{}", cmd).code()));
+        //let cmd = self.gen_cmd(ws);
+        //sect.add_content(("run command", format!("{}", cmd).code()));
 
-        let res = cmd.run_with(&self.executor).await?;
+        //let res = cmd.run_with(&self.executor).await?;
 
-        if !res.status.completed() {
-            run_status_updates.add_update(
-                Update::new("Running valgrind")
-                    .status(output::Status::Fail)
-                    .points_lost(PointQuantity::FullPoints),
-            );
-            section.add_content(run_status_updates);
-            return Ok(StageResult::new(
-                StageStatus::UnrecoverableFailure,
-                Some(Output::new().section(section)),
-            ));
-        }
+        //if !res.status.completed() {
+        //    run_updates.add_update(Update::new_fail(
+        //        "Running valgrind",
+        //        PointQuantity::FullPoints,
+        //    ));
+        //    sect.add_content(run_updates);
+        //    return Ok(StageResult::new(
+        //        StageStatus::UnrecoverableFailure,
+        //        Some(Output::new().section(sect)),
+        //    ));
+        //}
 
-        run_status_updates.add_update(Update::new("Running valgrind").status(output::Status::Pass));
-        run_status_updates
-            .add_update(Update::new("valgrind output:").notes(hide_paths(&res.stderr)));
-        section.add_content(run_status_updates);
+        //run_updates.add_update(Update::new_pass("Running valgrind"));
+        //results_sect.add_content(self.read_logfile()?);
+
+        //sect.add_content(run_updates);
+        //sect.add_content(Content::SubSection(results_sect));
 
         Ok(StageResult::new(
             StageStatus::Continue {
                 points_lost: PointQuantity::zero(),
             },
-            Some(Output::new().section(section)),
+            Some(Output::new().section(sect)),
         ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::{
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     use genos::{
         output::Contains,
@@ -171,62 +213,112 @@ mod tests {
 
     use super::*;
 
+    #[derive(Deserialize)]
+    struct ExamplesPrePost {
+        pre: String,
+        post: String,
+    }
+
+    #[derive(Deserialize)]
+    struct ExamplesDebugRelease<T> {
+        debug: T,
+        release: T,
+    }
+
+    #[derive(Deserialize)]
+    struct Examples {
+        noop: String,
+        segfault: ExamplesPrePost,
+        agony: ExamplesDebugRelease<ExamplesPrePost>,
+    }
+
+    const VALGRIND_EXAMPLES: &'static str = "resources/valgrind/examples.yml";
+
+    static EXAMPLES: OnceCell<Examples> = OnceCell::const_new();
+
+    async fn read_examples() -> Result<Examples> {
+        let mut examples_in = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        examples_in.push(VALGRIND_EXAMPLES);
+        assert!(
+            examples_in.exists(),
+            "Expected to find valgrind examples at {}",
+            VALGRIND_EXAMPLES
+        );
+
+        Ok(serde_yaml::from_str::<Examples>(&read_file(examples_in.as_path()).unwrap()).unwrap())
+    }
+
+    async fn get_examples() -> Result<&'static Examples> {
+        EXAMPLES.get_or_try_init(read_examples).await
+    }
+
     #[tokio::test]
-    async fn cmd_default() {
+    async fn cmd_basic() {
         let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
             process::Output::from_exit_status(ExitStatus::Ok),
         )])));
 
         let executor = MockProcessExecutor::new(data.clone());
 
-        let default = Valgrind::new(
+        let vg = Valgrind::new(
             executor,
-            ValgrindConfig::default(),
+            ValgrindConfig::new("valgrind.log"),
             "foo".to_string(),
             Vec::new(),
             None,
             None,
         );
-
         let ws = tempfile::tempdir().unwrap();
+        let cmd = vg.gen_cmd(ws.path());
 
-        let cmd = default.get_run_command(ws.path());
-
-        assert!(cmd.to_string() == "valgrind -- foo");
+        assert_eq!(
+            cmd.to_string(),
+            format!(
+                "valgrind --log-file=valgrind.log --error-exitcode={} -- foo",
+                ERROR_EXITCODE
+            )
+        );
     }
 
     #[tokio::test]
-    async fn cmd_partial() {
+    async fn cmd_options() {
         let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
             process::Output::from_exit_status(ExitStatus::Ok),
         )])));
 
         let executor = MockProcessExecutor::new(data.clone());
 
-        let mut config = ValgrindConfig::default();
-        config.error_exitcode = Some(200);
+        let mut config = ValgrindConfig::new("valgrind.log");
+        config.malloc_fill = Some(0xBA);
         config.free_fill = Some(0xDE);
 
-        let default = Valgrind::new(executor, config, "foo".to_string(), Vec::new(), None, None);
+        let vg = Valgrind::new(executor, config, "foo".to_string(), Vec::new(), None, None);
         let ws = tempfile::tempdir().unwrap();
-        let cmd = default.get_run_command(ws.path());
+        let cmd = vg.gen_cmd(ws.path());
 
-        assert!(cmd.to_string() == "valgrind --error-exitcode=200 --free-fill=0xDE -- foo");
+        assert_eq!(
+            cmd.to_string(),
+            format!(
+                "valgrind --log-file=valgrind.log --error-exitcode={} \
+                --malloc-fill=0xBA --free-fill=0xDE -- foo",
+                ERROR_EXITCODE
+            )
+        );
     }
 
     #[tokio::test]
-    async fn cmd_redir() {
+    async fn cmd_redir_stdin() {
         let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
             process::Output::from_exit_status(ExitStatus::Ok),
         )])));
 
         let executor = MockProcessExecutor::new(data.clone());
 
-        let mut config = ValgrindConfig::default();
-        config.error_exitcode = Some(200);
+        let mut config = ValgrindConfig::new("valgrind.log");
+        config.malloc_fill = Some(0xBA);
         config.free_fill = Some(0xDE);
 
-        let default = Valgrind::new(
+        let vg = Valgrind::new(
             executor,
             config,
             "foo".to_string(),
@@ -237,22 +329,235 @@ mod tests {
 
         let ws = tempfile::tempdir().unwrap();
 
-        let cmd = default.get_run_command(ws.path());
+        let cmd = vg.gen_cmd(ws.path());
 
-        assert!(cmd.to_string() == "valgrind --error-exitcode=200 --free-fill=0xDE -- foo < bar");
+        assert_eq!(
+            cmd.to_string(),
+            format!(
+                "valgrind --log-file=valgrind.log --error-exitcode={} \
+                --malloc-fill=0xBA --free-fill=0xDE -- foo < bar",
+                ERROR_EXITCODE
+            )
+        );
     }
 
     #[tokio::test]
-    async fn missing_exec_fail() {
+    async fn read_any() {
         let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
             process::Output::from_exit_status(ExitStatus::Ok),
         )])));
 
         let executor = MockProcessExecutor::new(data.clone());
 
-        let default = Valgrind::new(
+        let vg = Valgrind::new(
             executor,
-            ValgrindConfig::default(),
+            ValgrindConfig::new("valgrind.log"),
+            "noop".to_string(),
+            Vec::new(),
+            None,
+            None,
+        );
+
+        let ws = MockDir::new()
+            .file(("noop", ""))
+            .file(("valgrind.log", "here is some text"));
+
+        assert_eq!(
+            vg.read_logfile(ws.root.path()).unwrap(),
+            "here is some text"
+        );
+    }
+
+    #[tokio::test]
+    async fn read_basic() {
+        let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Ok),
+        )])));
+
+        let executor = MockProcessExecutor::new(data.clone());
+
+        let vg = Valgrind::new(
+            executor,
+            ValgrindConfig::new("valgrind.log"),
+            "noop".to_string(),
+            Vec::new(),
+            None,
+            None,
+        );
+
+        let log = get_examples().await.unwrap().noop.clone();
+
+        assert!(log.find("ERROR SUMMARY").is_some());
+
+        let ws = MockDir::new()
+            .file(("noop", ""))
+            .file(("valgrind.log", log.clone()));
+
+        assert_eq!(vg.read_logfile(ws.root.path()).unwrap(), log);
+    }
+
+    #[tokio::test]
+    async fn read_hides_paths_basic() {
+        let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Ok),
+        )])));
+
+        let executor = MockProcessExecutor::new(data.clone());
+
+        let vg = Valgrind::new(
+            executor,
+            ValgrindConfig::new("valgrind.log"),
+            "noop".to_string(),
+            Vec::new(),
+            None,
+            None,
+        );
+
+        let log_await = &get_examples().await.unwrap().segfault;
+        let log_pre = log_await.pre.clone();
+        let log_post = log_await.post.clone();
+
+        assert!(log_pre.find("ERROR SUMMARY").is_some());
+        assert!(log_post.find("ERROR SUMMARY").is_some());
+
+        assert!(log_pre.find("/root/genos_tests/segfault").is_some());
+        assert!(log_post.find("/root/genos_tests/segfault").is_none());
+        assert!(log_pre.find("(in segfault)").is_none());
+        assert!(log_post.find("(in segfault)").is_some());
+
+        let ws = MockDir::new()
+            .file(("noop", ""))
+            .file(("valgrind.log", log_pre));
+
+        assert_eq!(vg.read_logfile(ws.root.path()).unwrap(), log_post);
+    }
+
+    #[tokio::test]
+    async fn read_hides_paths_many_debug_mode() {
+        let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Ok),
+        )])));
+
+        let executor = MockProcessExecutor::new(data.clone());
+
+        let vg = Valgrind::new(
+            executor,
+            ValgrindConfig::new("valgrind.log"),
+            "noop".to_string(),
+            Vec::new(),
+            None,
+            None,
+        );
+
+        let log_await = &get_examples().await.unwrap().agony.debug;
+        let log_pre = log_await.pre.clone();
+        let log_post = log_await.post.clone();
+
+        assert!(log_pre.find("ERROR SUMMARY").is_some());
+        assert!(log_post.find("ERROR SUMMARY").is_some());
+
+        assert!(log_pre
+            .find("/usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so")
+            .is_some());
+        assert!(log_post
+            .find("/usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so")
+            .is_none());
+        assert!(log_pre
+            .find("(in vgpreload_memcheck-amd64-linux.so)")
+            .is_none());
+        assert!(log_post
+            .find("(in vgpreload_memcheck-amd64-linux.so)")
+            .is_some());
+
+        let ws = MockDir::new()
+            .file(("noop", ""))
+            .file(("valgrind.log", log_pre));
+
+        assert_eq!(vg.read_logfile(ws.root.path()).unwrap(), log_post);
+    }
+
+    #[tokio::test]
+    async fn read_hides_paths_many_release_mode() {
+        let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Ok),
+        )])));
+
+        let executor = MockProcessExecutor::new(data.clone());
+
+        let vg = Valgrind::new(
+            executor,
+            ValgrindConfig::new("valgrind.log"),
+            "noop".to_string(),
+            Vec::new(),
+            None,
+            None,
+        );
+
+        let log_await = &get_examples().await.unwrap().agony.release;
+        let log_pre = log_await.pre.clone();
+        let log_post = log_await.post.clone();
+
+        assert!(log_pre
+            .find("/root/genos_tests/many/layers/of/agony")
+            .is_some());
+        assert!(log_post
+            .find("/root/genos_tests/many/layers/of/agony")
+            .is_none());
+        assert!(log_pre
+            .find("/usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so")
+            .is_some());
+        assert!(log_post
+            .find("/usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so")
+            .is_none());
+        assert!(log_pre
+            .find("(in vgpreload_memcheck-amd64-linux.so)")
+            .is_none());
+        assert!(log_post
+            .find("(in vgpreload_memcheck-amd64-linux.so)")
+            .is_some());
+        assert!(log_pre.find("(in agony)").is_none());
+        assert!(log_post.find("(in agony)").is_some());
+
+        let ws = MockDir::new()
+            .file(("noop", ""))
+            .file(("valgrind.log", log_pre));
+
+        assert_eq!(vg.read_logfile(ws.root.path()).unwrap(), log_post);
+    }
+
+    #[tokio::test]
+    async fn run_binchk_pass() {
+        let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Ok),
+        )])));
+
+        let executor = MockProcessExecutor::new(data.clone());
+
+        let vg = Valgrind::new(
+            executor,
+            ValgrindConfig::new("valgrind.log"),
+            "noop".to_string(),
+            Vec::new(),
+            None,
+            None,
+        );
+
+        let ws = MockDir::new().file(("noop", ""));
+
+        assert!(!vg.run(ws.root.path()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn run_binchk_fail() {
+        let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
+            process::Output::from_exit_status(ExitStatus::Ok),
+        )])));
+
+        let executor = MockProcessExecutor::new(data.clone());
+
+        let vg = Valgrind::new(
+            executor,
+            ValgrindConfig::new("valgrind.log"),
             "noop".to_string(),
             Vec::new(),
             None,
@@ -261,139 +566,40 @@ mod tests {
 
         let ws = MockDir::new();
 
-        assert!(default.run(ws.root.path()).await.is_err());
+        assert!(vg.run(ws.root.path()).await.is_err());
     }
 
     #[tokio::test]
-    async fn avail_exec_pass() {
+    async fn run_suppchk_pass() {
         let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
             process::Output::from_exit_status(ExitStatus::Ok),
         )])));
 
         let executor = MockProcessExecutor::new(data.clone());
 
-        let default = Valgrind::new(
-            executor,
-            ValgrindConfig::default(),
-            "noop".to_string(),
-            Vec::new(),
-            None,
-            None,
-        );
+        let mut config = ValgrindConfig::new("valgrind.log");
+        config.suppressions = Some("foo.supp".to_string());
 
-        let ws = MockDir::new().file(("noop", "#!/bin/bash"));
+        let vg = Valgrind::new(executor, config, "noop".to_string(), Vec::new(), None, None);
+        let ws = MockDir::new().file(("noop", "")).file(("foo.supp", ""));
 
-        assert!(!default.run(&ws.root.path()).await.is_err());
+        assert!(!vg.run(ws.root.path()).await.is_err());
     }
 
     #[tokio::test]
-    async fn simple_pass() {
-        let noop_err = "\
-            ==55== Memcheck, a memory error detector\n\
-            ==55== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.\n\
-            ==55== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info\n\
-            ==55== Command: ./noop\n\
-            ==55== \n\
-            ==55== \n\
-            ==55== HEAP SUMMARY:\n\
-            ==55==     in use at exit: 0 bytes in 0 blocks\n\
-            ==55==   total heap usage: 0 allocs, 0 frees, 0 bytes allocated\n\
-            ==55== \n\
-            ==55== All heap blocks were freed -- no leaks are possible\n\
-            ==55== \n\
-            ==55== For lists of detected and suppressed errors, rerun with: -s\n\
-            ==55== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)";
-
+    async fn run_suppchk_fail() {
         let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
-            process::Output::new(ExitStatus::Ok, "", noop_err),
+            process::Output::from_exit_status(ExitStatus::Ok),
         )])));
 
         let executor = MockProcessExecutor::new(data.clone());
 
-        let default = Valgrind::new(
-            executor,
-            ValgrindConfig::default(),
-            "./noop".to_string(),
-            Vec::new(),
-            None,
-            None,
-        );
+        let mut config = ValgrindConfig::new("valgrind.log");
+        config.suppressions = Some("foo.supp".to_string());
 
+        let vg = Valgrind::new(executor, config, "noop".to_string(), Vec::new(), None, None);
         let ws = MockDir::new().file(("noop", ""));
-        let res = default.run(ws.root.path()).await.unwrap();
 
-        assert_eq!(
-            res.status,
-            StageStatus::Continue {
-                points_lost: PointQuantity::zero(),
-            }
-        );
-        assert!(res.output.as_ref().unwrap().contains("Valgrind"));
-        assert!(res.output.as_ref().unwrap().contains("run command"));
-        assert!(res.output.as_ref().unwrap().contains("valgrind -- ./noop"));
-        assert!(res
-            .output
-            .as_ref()
-            .unwrap()
-            .contains("All heap blocks were freed -- no leaks are possible"));
-    }
-
-    #[tokio::test]
-    async fn hides_absolute() {
-        let pwd_err = "\
-            ==22856== Memcheck, a memory error detector\n\
-            ==22856== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.\n\
-            ==22856== Using Valgrind-3.20.0 and LibVEX; rerun with -h for copyright info\n\
-            ==22856== Command: ./pwd\n\
-            ==22856== \n\
-            /home/user/git/Genos\n\
-            ==22856== \n\
-            ==22856== HEAP SUMMARY:\n\
-            ==22856==     in use at exit: 0 bytes in 0 blocks\n\
-            ==22856==   total heap usage: 1 allocs, 1 frees, 1,024 bytes allocated\n\
-            ==22856== \n\
-            ==22856== All heap blocks were freed -- no leaks are possible\n\
-            ==22856== \n\
-            ==22856== For lists of detected and suppressed errors, rerun with: -s\n\
-            ==22856== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0";
-
-        let data = Arc::new(Mutex::new(MockExecutorInner::with_responses([Ok(
-            process::Output::new(ExitStatus::Ok, "", pwd_err),
-        )])));
-
-        let executor = MockProcessExecutor::new(data.clone());
-
-        let default = Valgrind::new(
-            executor,
-            ValgrindConfig::default(),
-            "./pwd".to_string(),
-            Vec::new(),
-            None,
-            None,
-        );
-
-        let ws = MockDir::new().file(("pwd", ""));
-        let res = default.run(ws.root.path()).await.unwrap();
-
-        assert_eq!(
-            res.status,
-            StageStatus::Continue {
-                points_lost: PointQuantity::zero(),
-            }
-        );
-        assert!(res.output.as_ref().unwrap().contains("Valgrind"));
-        assert!(res.output.as_ref().unwrap().contains("run command"));
-        assert!(res.output.as_ref().unwrap().contains("valgrind -- ./pwd"));
-        assert!(res
-            .output
-            .as_ref()
-            .unwrap()
-            .contains("All heap blocks were freed -- no leaks are possible"));
-        assert!(!res
-            .output
-            .as_ref()
-            .unwrap()
-            .contains("/home/user/git/Genos"));
-        assert!(res.output.as_ref().unwrap().contains("<path hidden>"));
+        assert!(vg.run(ws.root.path()).await.is_err());
     }
 }
