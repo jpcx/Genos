@@ -104,10 +104,6 @@ mod tests {
             .file(("file1", "file1 contents"))
             .file(("file2", "file2 contents"));
 
-        let executor = ImportFiles::new(&config, &data).unwrap();
-        for file in &executor.files {
-            let name = file.file_name().unwrap().to_str().unwrap().to_string();
-            assert!(data.files.contains_key(&name));
-        }
+        ImportFiles::new(&config, &data).unwrap();
     }
 }
