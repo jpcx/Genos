@@ -6,17 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-genos = { path = "../genos" }
+argh = "0.1.10"
 anyhow = "1"
 async-trait = "0.1"
+genos = { path = "../genos" }
+glob = "0.3"
 regex = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
 tempfile = "3"
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = {version = "0.1", default-features = true}
 tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
-argh = "0.1.10"
-serde_yaml = "0.9"
-serde = { version = "1.0", features = ["derive"] }
-thiserror = "1"
-glob = "0.3"
