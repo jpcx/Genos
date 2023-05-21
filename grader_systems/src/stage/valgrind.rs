@@ -1,9 +1,4 @@
-use std::{
-    fs::File,
-    io::Read,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{fs::File, io::Read, path::Path, time::Duration};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -37,16 +32,7 @@ pub struct ValgrindConfig {
     leak_check: Option<bool>,
     malloc_fill: Option<u8>,
     free_fill: Option<u8>,
-    suppressions: Option<String>, // TODO Option<Vec<String>>
-}
-
-impl ValgrindConfig {
-    fn new(log_file: &str) -> Self {
-        Self {
-            log_file: log_file.to_string(),
-            ..Self::default()
-        }
-    }
+    suppressions: Option<Vec<String>>,
 }
 
 pub struct Valgrind<E> {
@@ -66,6 +52,7 @@ fn read_file(path: &Path) -> Result<String> {
 }
 
 impl<E: ProcessExecutor> Valgrind<E> {
+    #[allow(dead_code)]
     pub fn new(
         executor: E,
         config: ValgrindConfig,
@@ -104,7 +91,9 @@ impl<E: ProcessExecutor> Valgrind<E> {
         }
 
         if let Some(v) = &self.config.suppressions {
-            cmd.add_arg(format!("--suppressions={}", v));
+            for supp in v {
+                cmd.add_arg(format!("--suppressions={}", supp));
+            }
         }
 
         cmd.add_arg("--");
@@ -163,8 +152,10 @@ impl<E: ProcessExecutor> Executor for Valgrind<E> {
         }
 
         if let Some(v) = &self.config.suppressions {
-            if !ws.join(&v).exists() {
-                return Err(anyhow!("Could not find valgrind suppressions at {}", v));
+            for supp in v {
+                if !ws.join(&supp).exists() {
+                    return Err(anyhow!("Could not find valgrind suppressions at {}", supp));
+                }
             }
         }
 
@@ -292,6 +283,15 @@ mod tests {
         agony: ExamplesDebugRelease<ExamplesPrePost>,
     }
 
+    impl ValgrindConfig {
+        fn new(log_file: &str) -> Self {
+            Self {
+                log_file: log_file.to_string(),
+                ..Self::default()
+            }
+        }
+    }
+
     // reads various valgrind output examples from YAML
     // use get_examples to access
     const EXAMPLES_PATH: &'static str = "resources/valgrind/examples.yml";
@@ -393,6 +393,50 @@ mod tests {
                 format!(
                     "valgrind --log-file=vg.log --error-exitcode={} \
                     --malloc-fill=0xBA --free-fill=0xDE -- noop < bar",
+                    ERROR_EXITCODE
+                )
+            );
+        }
+
+        {
+            let mut config = ValgrindConfig::new("vg.log");
+            config.malloc_fill = Some(0xBA);
+            config.free_fill = Some(0xDE);
+            config.suppressions = Some(vec!["foo.supp".to_string()]);
+            assert_eq!(
+                mock_cmd(
+                    config,
+                    "noop",
+                    Some("bar".to_string()),
+                    ExitStatus::Ok,
+                    MockDir::new()
+                ),
+                format!(
+                    "valgrind --log-file=vg.log --error-exitcode={} \
+                    --malloc-fill=0xBA --free-fill=0xDE --suppressions=foo.supp \
+                    -- noop < bar",
+                    ERROR_EXITCODE
+                )
+            );
+        }
+
+        {
+            let mut config = ValgrindConfig::new("vg.log");
+            config.malloc_fill = Some(0xBA);
+            config.free_fill = Some(0xDE);
+            config.suppressions = Some(vec!["foo.supp".to_string(), "bar.supp".to_string()]);
+            assert_eq!(
+                mock_cmd(
+                    config,
+                    "noop",
+                    Some("bar".to_string()),
+                    ExitStatus::Ok,
+                    MockDir::new()
+                ),
+                format!(
+                    "valgrind --log-file=vg.log --error-exitcode={} \
+                    --malloc-fill=0xBA --free-fill=0xDE --suppressions=foo.supp \
+                    --suppressions=bar.supp -- noop < bar",
                     ERROR_EXITCODE
                 )
             );
@@ -639,7 +683,7 @@ mod tests {
     async fn run_asserts_supp_exists() {
         {
             let mut config = ValgrindConfig::new("vg.log");
-            config.suppressions = Some("foo.supp".to_string());
+            config.suppressions = Some(vec!["foo.supp".to_string()]);
             assert!(mock_run(
                 config,
                 "noop",
@@ -655,12 +699,28 @@ mod tests {
 
         {
             let mut config = ValgrindConfig::new("vg.log");
-            config.suppressions = Some("foo.supp".to_string());
+            config.suppressions = Some(vec!["foo.supp".to_string()]);
             assert!(mock_run(
                 config,
                 "noop",
                 MockDir::new()
                     .file(("noop", ""))
+                    .file(("vg.log", get_examples().await.unwrap().noop.clone())),
+                ExitStatus::Ok
+            )
+            .await
+            .is_err());
+        }
+
+        {
+            let mut config = ValgrindConfig::new("vg.log");
+            config.suppressions = Some(vec!["foo.supp".to_string(), "bar.supp".to_string()]);
+            assert!(mock_run(
+                config,
+                "noop",
+                MockDir::new()
+                    .file(("noop", ""))
+                    .file(("foo.supp", ""))
                     .file(("vg.log", get_examples().await.unwrap().noop.clone())),
                 ExitStatus::Ok
             )
