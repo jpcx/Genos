@@ -160,7 +160,7 @@ impl<E: ProcessExecutor> Executor for Valgrind<E> {
         }
 
         let cmd = self.gen_cmd(ws);
-        sect.add_content(("run command", format!("{}", cmd).code()));
+        sect.add_content(("Run Command", format!("{}", cmd).code()));
 
         let res = cmd.run_with(&self.executor).await?;
 
@@ -170,35 +170,37 @@ impl<E: ProcessExecutor> Executor for Valgrind<E> {
             match res.status {
                 ExitStatus::Timeout(to) => {
                     run_updates.add_update(
-                        Update::new_fail("Running valgrind", PointQuantity::FullPoints).notes(
+                        Update::new_fail("running valgrind", PointQuantity::FullPoints).notes(
                             format!(
                                 "Your submission timed out after {} seconds :(",
                                 to.as_secs()
                             ),
                         ),
                     );
+                    sect.add_content(run_updates);
                 }
                 ExitStatus::Signal(sig) => match sig {
                     SignalType::SegFault => {
                         run_updates.add_update(
-                            Update::new_fail("Running valgrind", PointQuantity::FullPoints)
+                            Update::new_fail("running valgrind", PointQuantity::FullPoints)
                                 .notes("Your submission was killed by SIGSEGV!"),
                         );
                         results_sect.add_content(log);
+                        sect.add_content(run_updates);
                         sect.add_content(Content::SubSection(results_sect));
                     }
                     SignalType::Abort => {
                         run_updates.add_update(
-                            Update::new_fail("Running valgrind", PointQuantity::FullPoints)
+                            Update::new_fail("running valgrind", PointQuantity::FullPoints)
                                 .notes("Your submission was killed by SIGABRT!"),
                         );
                         results_sect.add_content(log);
+                        sect.add_content(run_updates);
                         sect.add_content(Content::SubSection(results_sect));
                     }
                 },
                 _ => panic!("Expected either Timeout or Signal if command was not completed"),
             }
-            sect.add_content(run_updates);
             return Ok(StageResult::new(
                 StageStatus::UnrecoverableFailure,
                 Some(Output::new().section(sect)),
@@ -207,7 +209,7 @@ impl<E: ProcessExecutor> Executor for Valgrind<E> {
 
         match res.status {
             ExitStatus::Ok => {
-                run_updates.add_update(Update::new_pass("Running valgrind"));
+                run_updates.add_update(Update::new_pass("running valgrind"));
                 results_sect.add_content(log);
                 sect.add_content(run_updates);
                 sect.add_content(Content::SubSection(results_sect));
@@ -229,7 +231,7 @@ impl<E: ProcessExecutor> Executor for Valgrind<E> {
                 }
 
                 run_updates.add_update(
-                    Update::new_fail("Running valgrind", PointQuantity::FullPoints)
+                    Update::new_fail("running valgrind", PointQuantity::FullPoints)
                         .notes("Valgrind Errors Detected"),
                 );
                 results_sect.add_content(log);
@@ -254,9 +256,11 @@ mod tests {
     };
 
     use genos::{
+        formatter::MarkdownFormatter,
         output::Contains,
         process,
         test_util::{MockDir, MockExecutorInner, MockProcessExecutor},
+        writer::Transform,
     };
 
     use super::*;
@@ -886,7 +890,7 @@ mod tests {
             .output
             .unwrap();
             assert!(out.contains("Valgrind"));
-            assert!(out.contains("Running valgrind"));
+            assert!(out.contains("running valgrind"));
             assert!(out.contains("Output:"));
             assert!(out.contains("Memcheck, a memory error detector"));
             assert!(out.contains("HEAP SUMMARY"));
@@ -908,7 +912,7 @@ mod tests {
             .output
             .unwrap();
             assert!(out.contains("Valgrind"));
-            assert!(out.contains("Running valgrind"));
+            assert!(out.contains("running valgrind"));
             assert!(out.contains("Output:"));
             assert!(out.contains("Memcheck, a memory error detector"));
             assert!(out.contains("HEAP SUMMARY"));
@@ -933,7 +937,7 @@ mod tests {
             .output
             .unwrap();
             assert!(out.contains("Valgrind"));
-            assert!(out.contains("Running valgrind"));
+            assert!(out.contains("running valgrind"));
             assert!(out.contains("Output:"));
             assert!(out.contains("Memcheck, a memory error detector"));
             assert!(out.contains("HEAP SUMMARY"));
@@ -958,7 +962,7 @@ mod tests {
             .output
             .unwrap();
             assert!(out.contains("Valgrind"));
-            assert!(out.contains("Running valgrind"));
+            assert!(out.contains("running valgrind"));
             assert!(out.contains(format!(
                 "Your submission timed out after {} seconds :(",
                 DEFAULT_TIMEOUT.as_secs()
@@ -980,6 +984,106 @@ mod tests {
             SignalType::SegFault => {}
         }
         // }}}
+    }
+
+    #[tokio::test]
+    async fn outputs_expected_format() {
+        {
+            let out = mock_run(
+                ValgrindConfig::new("vg.log"),
+                "noop",
+                MockDir::new()
+                    .file(("noop", ""))
+                    .file(("vg.log", get_examples().await.unwrap().noop.clone())),
+                ExitStatus::Ok,
+            )
+            .await
+            .unwrap()
+            .output
+            .unwrap()
+            .transform(&MarkdownFormatter);
+
+            assert!(out.contains("# Valgrind"));
+            assert!(out.contains("## Run Command"));
+            assert!(out.contains("valgrind --log-file=vg.log --error-exitcode=125 -- noop"));
+            assert!(out.contains("running valgrind .... pass"));
+            assert!(out.contains("## Output:"));
+        }
+
+        {
+            let out = mock_run(
+                ValgrindConfig::new("vg.log"),
+                "segfault",
+                MockDir::new()
+                    .file(("segfault", ""))
+                    .file(("vg.log", get_examples().await.unwrap().segfault.pre.clone())),
+                ExitStatus::Signal(SignalType::SegFault),
+            )
+            .await
+            .unwrap()
+            .output
+            .unwrap()
+            .transform(&MarkdownFormatter);
+
+            assert!(out.contains("# Valgrind"));
+            assert!(out.contains("## Run Command"));
+            assert!(out.contains("valgrind --log-file=vg.log --error-exitcode=125 -- segfault"));
+            assert!(out.contains("running valgrind .... fail (-fullpoints)"));
+            assert!(out.contains("## feedback for running valgrind"));
+            assert!(out.contains("Your submission was killed by SIGSEGV!"));
+            assert!(out.contains("## Output:"));
+        }
+
+        {
+            let out = mock_run(
+                ValgrindConfig::new("vg.log"),
+                "infinite",
+                MockDir::new()
+                    .file(("infinite", ""))
+                    .file(("vg.log", get_examples().await.unwrap().infinite.pre.clone())),
+                ExitStatus::Signal(SignalType::Abort),
+            )
+            .await
+            .unwrap()
+            .output
+            .unwrap()
+            .transform(&MarkdownFormatter);
+
+            assert!(out.contains("# Valgrind"));
+            assert!(out.contains("## Run Command"));
+            assert!(out.contains("valgrind --log-file=vg.log --error-exitcode=125 -- infinite"));
+            assert!(out.contains("running valgrind .... fail (-fullpoints)"));
+            assert!(out.contains("## feedback for running valgrind"));
+            assert!(out.contains("Your submission was killed by SIGABRT!"));
+            assert!(out.contains("## Output:"));
+        }
+
+        {
+            let out = mock_run(
+                ValgrindConfig::new("vg.log"),
+                "infinite",
+                MockDir::new()
+                    .file(("infinite", ""))
+                    .file(("vg.log", get_examples().await.unwrap().infinite.pre.clone())),
+                ExitStatus::Timeout(DEFAULT_TIMEOUT),
+            )
+            .await
+            .unwrap()
+            .output
+            .unwrap()
+            .transform(&MarkdownFormatter);
+
+            assert!(out.contains("# Valgrind"));
+            assert!(out.contains("## Run Command"));
+            assert!(out.contains("valgrind --log-file=vg.log --error-exitcode=125 -- infinite"));
+            assert!(out.contains("running valgrind .... fail (-fullpoints)"));
+            assert!(out.contains("## feedback for running valgrind"));
+            assert!(out.contains(&format!(
+                "Your submission timed out after {} seconds :(",
+                DEFAULT_TIMEOUT.as_secs()
+            )));
+            //assert!(out.contains("## Output:"));
+        }
     }
 }
 
