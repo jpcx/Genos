@@ -1,5 +1,9 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
+use async_trait::async_trait;
 use genos::{
     gs::TestDescription,
     points::{PointQuantity, Points},
@@ -7,11 +11,22 @@ use genos::{
     tid::TestId,
 };
 
+use anyhow::Result;
 use argh::FromArgs;
 use serde::{de, Deserialize, Deserializer};
 use thiserror::Error;
+use tokio::{fs::File, io::AsyncReadExt};
 
 use crate::stage::{compile::CompileConfig, run::RunConfig};
+
+pub const TEST_CONFIG_NAME: &'static str = "config.yaml";
+
+#[async_trait]
+pub trait FromConfigFile {
+    type Config;
+
+    async fn from_file(path: &Path) -> Result<Self::Config>;
+}
 
 /// Config is the global config object which includes the config for the hw being run, all the
 /// testcase configs which were found in the test resource directories and the config given through
@@ -34,6 +49,18 @@ pub struct HwConfig {
     pub groups: Vec<TestGroup>,
 }
 
+#[async_trait]
+impl FromConfigFile for HwConfig {
+    type Config = HwConfig;
+
+    async fn from_file(path: &Path) -> Result<Self::Config> {
+        let mut file = File::open(path).await?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).await?;
+        Ok(serde_yaml::from_str(&contents)?)
+    }
+}
+
 #[derive(Deserialize)]
 pub struct TestGroup {
     pub name: String,
@@ -49,6 +76,18 @@ pub struct TestConfig {
     pub run: RunConfig,
     pub compare_files: Option<ComparesConfig>,
     pub import_files: Option<ImportConfig>,
+}
+
+#[async_trait]
+impl FromConfigFile for TestConfig {
+    type Config = TestConfig;
+
+    async fn from_file(path: &Path) -> Result<Self::Config> {
+        let mut file = File::open(path).await?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).await?;
+        Ok(serde_yaml::from_str(&contents)?)
+    }
 }
 
 impl TestConfig {
@@ -130,30 +169,28 @@ impl<'de> Deserialize<'de> for TestConfig {
 #[derive(FromArgs)]
 /// Run the autograder for the systems course
 pub struct Cli {
-    /// where the data directory is located
-    #[argh(option, short = 'd', from_str_fn(make_absolute))]
-    data: PathBuf,
+    /// path to the hw config
+    #[argh(option, short = 'h', from_str_fn(make_absolute))]
+    pub config: PathBuf,
 
-    /// what class offering the hw is in.
-    #[argh(option, short = 'c')]
-    class: String,
-
-    /// what hw to run the autograder on
-    #[argh(option, short = 'h')]
-    hw: String,
-
-    /// what submission to run
+    /// path to the submission to run
     #[argh(option, short = 's', from_str_fn(make_absolute))]
-    submission: PathBuf,
+    pub submission: PathBuf,
 
     /// test grouping to run, must be a named group in the hw config
     #[argh(option, short = 'g')]
-    group: Option<String>,
+    pub group: Option<String>,
 }
 
 fn make_absolute(path_arg: &str) -> Result<PathBuf, String> {
-    fs::canonicalize(&path_arg)
-        .map_err(|e| format!("error creating absolute path from {path_arg}: {e}"))
+    let path = fs::canonicalize(&path_arg)
+        .map_err(|e| format!("error creating absolute path from {path_arg}: {e}"))?;
+
+    if !path.exists() {
+        return Err(format!("{} does not exist", path_arg));
+    }
+
+    Ok(path)
 }
 
 #[cfg(test)]

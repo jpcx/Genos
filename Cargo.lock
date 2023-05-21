@@ -283,6 +283,7 @@ dependencies = [
  "anyhow",
  "argh",
  "async-trait",
+ "futures",
  "genos",
  "glob",
  "serde",

@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     fs::File,
     io::Write,
     path::{Path, PathBuf},

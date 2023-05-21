@@ -1,77 +1,24 @@
-use std::{
-    path::{Path, PathBuf},
-    result::Result as StdResult,
-};
-
 use anyhow::Result;
-use config::{TestConfig, TestType};
-use genos::{
-    fs::{self, ResourceLocator, ResourceLocatorCreator},
-    process::ShellExecutor,
-    stage::{
-        compare_files::{ComparatorCreatorImpl, CompareFiles},
-        import_files::ImportFiles,
-    },
-    test::GenosTest,
-};
-use stage::{compile::Compile, run::Run};
+use config::{Cli, FromConfigFile, HwConfig};
+use context::Context;
+use tracing::error;
 
 mod config;
 mod context;
 mod finder;
 mod stage;
 
-struct TestResourceLocator;
-
-impl ResourceLocator for TestResourceLocator {
-    fn find(&self, _name: &String) -> StdResult<PathBuf, fs::Error> {
-        todo!();
-    }
+async fn run_grader(cli_config: Cli) -> Result<()> {
+    let hw_config = HwConfig::from_file(&cli_config.config).await?;
+    let context = Context::new(cli_config, hw_config).await;
+    context.run_grader().await
 }
 
-struct TestResourceLocatorCreator;
+#[tokio::main]
+async fn main() {
+    let cli_config: Cli = argh::from_env();
 
-impl ResourceLocatorCreator for TestResourceLocatorCreator {
-    fn create(&self, _ws: &Path) -> Box<dyn ResourceLocator> {
-        Box::new(TestResourceLocator)
+    if let Err(e) = run_grader(cli_config).await {
+        error!("Error running grader: {e}");
     }
-}
-
-fn build_testcase(config: &TestConfig) -> Result<GenosTest> {
-    match &config.test_type {
-        TestType::Diff => {
-            // test order should be
-            // 1. import files (done)
-            // 2. compile (done)
-            // 3. run (done)
-            // 4. compare (done)
-            // 5. valgrind run
-            // 6. run with memory limit
-            let mut test = GenosTest::new(config.description.total_points);
-            if let Some(import_files) = &config.import_files {
-                test.add_stage(ImportFiles::new(import_files, &TestResourceLocator)?)
-            }
-
-            test.add_stage(Compile::new(&config.compile, ShellExecutor));
-
-            test.add_stage(Run::new(ShellExecutor, config.run.clone()));
-
-            let compare_files = config
-                .compare_files
-                .as_ref()
-                .expect("Expected diff test to have at least one compare");
-
-            test.add_stage(CompareFiles::new(
-                TestResourceLocatorCreator,
-                ComparatorCreatorImpl::new(ShellExecutor),
-                compare_files.clone(),
-            ));
-
-            Ok(test)
-        }
-    }
-}
-
-fn main() {
-    println!("Hello, world!");
 }
