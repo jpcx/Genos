@@ -20,9 +20,10 @@ use tracing::debug;
 // default should be longer than run stage default
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
-// exit code used to identify non-signal failures. not configurable via YAML.
+// exit code used to identify non-signal failures.
+// not configurable via YAML.
 //
-// exit codes >125 are reserved by POSIX standards, see exit(1p)
+// exit codes >125 are reserved by POSIX; see exit(1p)
 // and https://tldp.org/LDP/abs/html/exitcodes.html
 const ERROR_EXITCODE: i32 = 125;
 
