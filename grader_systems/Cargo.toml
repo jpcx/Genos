@@ -9,6 +9,7 @@ edition = "2021"
 argh = "0.1.10"
 anyhow = "1"
 async-trait = "0.1"
+futures = "0.3"
 genos = { path = "../genos" }
 glob = "0.3"
 regex = "1"

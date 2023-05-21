@@ -32,13 +32,18 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
+use futures::future::join_all;
 use genos::{
     fs::{filename, filepath, Error, ResourceLocator},
     tid::TestId,
 };
 
 use glob::glob;
+use tokio::{fs::File, io::AsyncReadExt};
 use tracing::{debug, warn};
+
+use crate::config::{FromConfigFile, TestConfig, TEST_CONFIG_NAME};
 
 pub trait TestResourceFinder {
     fn test_resource(&self, tid: TestId, name: &String) -> Result<PathBuf, Error>;
@@ -46,6 +51,11 @@ pub trait TestResourceFinder {
 
 pub trait SystemResourceFinder {
     fn system_resource(&self, name: &String) -> Result<PathBuf, Error>;
+}
+
+#[async_trait]
+pub trait TestConfigFinder {
+    async fn load_test_configs(&self) -> Result<Vec<TestConfig>>;
 }
 
 pub struct DirFinder {
@@ -62,7 +72,7 @@ impl DirFinder {
 impl ResourceLocator for DirFinder {
     fn find(&self, name: &String) -> Result<PathBuf, Error> {
         let file = self.dir.join(name);
-        if !file.exists() {
+        if file.is_dir() || !file.exists() {
             return Err(Error::NotFound);
         }
 
@@ -102,7 +112,7 @@ impl Finder {
     // its location. For example, by knowing where the hw config is, we know the system dir is 2
     // levels up, and that the test resource dirs are in the same direcory and follow the naming
     // convention test_X.
-    pub fn from_hw_config_path(hw_config: PathBuf) -> Result<Self> {
+    pub fn from_hw_config_path(hw_config: &Path) -> Result<Self> {
         // make the path absolute
         let hw_config = std::fs::canonicalize(hw_config)?;
         assert!(hw_config.is_file(), "Expected hw config to be a file");
@@ -184,11 +194,43 @@ impl SystemResourceFinder for Finder {
     }
 }
 
+#[async_trait]
+impl TestConfigFinder for Finder {
+    async fn load_test_configs(&self) -> Result<Vec<TestConfig>> {
+        // load all in configs in parallel
+        join_all(self.test_resource_dirs.iter().map(|(tid, dir)| async {
+                let path = dir.find(&TEST_CONFIG_NAME.to_string())?;
+
+                let config = TestConfig::from_file(&path).await?;
+
+                assert_eq!(
+                    config.description.test_id, *tid,
+                    "expected test config test_id to match directory it's contained in. Found {}, expected {}",
+                    config.description.test_id, *tid
+                );
+
+                Ok(config)
+            }))
+            .await
+            .into_iter()
+            .collect()
+    }
+}
+
 /// TestFileFinder provides a wrapper which can be given to tests which contains context on which
 /// test it can provide files for.
-struct TestFileFinder<F> {
+pub struct TestFileFinder<F> {
     tid: TestId,
     finder: Arc<F>,
+}
+
+impl<F> Clone for TestFileFinder<F> {
+    fn clone(&self) -> Self {
+        Self {
+            tid: self.tid.clone(),
+            finder: self.finder.clone(),
+        }
+    }
 }
 
 impl<F> TestFileFinder<F> {
@@ -206,9 +248,21 @@ where
     }
 }
 
+#[derive(Default)]
+pub struct MultiSourceFinder {
+    finders: Vec<Box<dyn ResourceLocator>>,
+}
+
+impl MultiSourceFinder {
+    pub fn source(mut self, source: Box<dyn ResourceLocator>) -> Self {
+        self.finders.push(source);
+        self
+    }
+}
+
 #[cfg(test)]
 impl Finder {
-    pub fn from_mock_dir<P: AsRef<Path>>(
+    pub fn from_mock_dir<P: AsRef<std::path::Path>>(
         mock_dir: &genos::test_util::MockDir,
         relative_path_to_hw_config: P,
     ) -> Result<Self> {
@@ -221,7 +275,7 @@ impl Finder {
             );
         }
 
-        Self::from_hw_config_path(hw_config)
+        Self::from_hw_config_path(&hw_config)
     }
 }
 
@@ -254,7 +308,7 @@ mod tests {
         assert!(hw_config.exists());
         assert!(hw_config.is_file());
 
-        let finder = Finder::from_hw_config_path(hw_config).unwrap();
+        let finder = Finder::from_hw_config_path(&hw_config).unwrap();
         for tid in [1, 2, 3] {
             let tid = TestId::new(tid);
             assert!(finder.test_resource_dirs.contains_key(&tid));
