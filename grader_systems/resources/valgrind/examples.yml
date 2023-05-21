@@ -1,5 +1,5 @@
 noop: |
-  ==73== Memcheck, a memory error detec
+  ==73== Memcheck, a memory error detector
   ==73== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
   ==73== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
   ==73== Command: noop
@@ -14,6 +14,47 @@ noop: |
   ==73== 
   ==73== For lists of detected and suppressed errors, rerun with: -s
   ==73== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+
+infinite:
+  pre: |
+    ==91== Memcheck, a memory error detector
+    ==91== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+    ==91== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
+    ==91== Command: infinite
+    ==91== Parent PID: 14
+    ==91== 
+    ==91== 
+    ==91== Process terminating with default action of signal 6 (SIGABRT)
+    ==91==    at 0x109131: main (in /root/genos_tests/infinite)
+    ==91== 
+    ==91== HEAP SUMMARY:
+    ==91==     in use at exit: 0 bytes in 0 blocks
+    ==91==   total heap usage: 0 allocs, 0 frees, 0 bytes allocated
+    ==91== 
+    ==91== All heap blocks were freed -- no leaks are possible
+    ==91== 
+    ==91== For lists of detected and suppressed errors, rerun with: -s
+    ==91== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+
+  post: |
+    ==91== Memcheck, a memory error detector
+    ==91== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+    ==91== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
+    ==91== Command: infinite
+    ==91== Parent PID: 14
+    ==91== 
+    ==91== 
+    ==91== Process terminating with default action of signal 6 (SIGABRT)
+    ==91==    at 0x109131: main (in infinite)
+    ==91== 
+    ==91== HEAP SUMMARY:
+    ==91==     in use at exit: 0 bytes in 0 blocks
+    ==91==   total heap usage: 0 allocs, 0 frees, 0 bytes allocated
+    ==91== 
+    ==91== All heap blocks were freed -- no leaks are possible
+    ==91== 
+    ==91== For lists of detected and suppressed errors, rerun with: -s
+    ==91== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 
 segfault:
   pre: |

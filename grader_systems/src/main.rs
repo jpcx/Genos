@@ -88,7 +88,7 @@ fn build_testcase(config: &TestConfig) -> Result<GenosTest> {
                 if let Some(_) = &config.valgrind {
                     tracing::warn!(
                         "Cannot run valgrind stage on local instance \
-                         without valgrind installed! skipping stage"
+                         without valgrind installed! Skipping stage."
                     );
                 }
             }
