@@ -3,13 +3,14 @@ use std::{path::Path, sync::Arc};
 use crate::{
     config::{Cli, HwConfig, TestConfig, TestType},
     finder::{Finder, TestConfigFinder, TestFileFinder},
-    stage::{compile::Compile, run::Run},
+    stage::{compile::Compile, run::Run, valgrind::Valgrind},
 };
 
 use anyhow::{anyhow, Result};
 use genos::{
     fs::ResourceLocator,
-    process::ShellExecutor,
+    gs::running_in_gs,
+    process::{is_program_in_path, ShellExecutor},
     stage::{
         compare_files::{ComparatorCreatorImpl, CompareFiles},
         import_files::ImportFiles,
