@@ -376,7 +376,7 @@ mod tests {
                 mock_cmd(config, "noop", None, ExitStatus::Ok, MockDir::new()),
                 format!(
                     "valgrind --log-file=vg.log --error-exitcode={} \
-                    --malloc-fill=0xBA --free-fill=0xDE -- noop",
+                     --malloc-fill=0xBA --free-fill=0xDE -- noop",
                     ERROR_EXITCODE
                 )
             );
@@ -396,7 +396,7 @@ mod tests {
                 ),
                 format!(
                     "valgrind --log-file=vg.log --error-exitcode={} \
-                    --malloc-fill=0xBA --free-fill=0xDE -- noop < bar",
+                     --malloc-fill=0xBA --free-fill=0xDE -- noop < bar",
                     ERROR_EXITCODE
                 )
             );
@@ -417,8 +417,8 @@ mod tests {
                 ),
                 format!(
                     "valgrind --log-file=vg.log --error-exitcode={} \
-                    --malloc-fill=0xBA --free-fill=0xDE --suppressions=foo.supp \
-                    -- noop < bar",
+                     --malloc-fill=0xBA --free-fill=0xDE --suppressions=foo.supp \
+                     -- noop < bar",
                     ERROR_EXITCODE
                 )
             );
@@ -439,8 +439,8 @@ mod tests {
                 ),
                 format!(
                     "valgrind --log-file=vg.log --error-exitcode={} \
-                    --malloc-fill=0xBA --free-fill=0xDE --suppressions=foo.supp \
-                    --suppressions=bar.supp -- noop < bar",
+                     --malloc-fill=0xBA --free-fill=0xDE --suppressions=foo.supp \
+                     --suppressions=bar.supp -- noop < bar",
                     ERROR_EXITCODE
                 )
             );

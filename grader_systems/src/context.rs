@@ -112,7 +112,7 @@ impl Context {
             if let Some(_) = &config.valgrind {
                 tracing::warn!(
                     "Cannot run valgrind stage on local instance \
-                    without valgrind installed! Skipping stage."
+                     without valgrind installed! Skipping stage."
                 );
             }
         }
