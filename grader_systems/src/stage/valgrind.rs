@@ -78,7 +78,7 @@ impl<E: ProcessExecutor> Valgrind<E> {
         cmd.add_arg(format!("--log-file={}", &self.config.log_file));
 
         if let Some(v) = &self.config.leak_check {
-            cmd.add_arg(format!("--leak-check={:?}", v));
+            cmd.add_arg(format!("--leak-check={}", if !!v { "yes" } else { "no" }));
         }
 
         cmd.add_arg(format!("--error-exitcode={}", ERROR_EXITCODE));
@@ -378,6 +378,38 @@ mod tests {
                 format!(
                     "valgrind --log-file=vg.log --error-exitcode={} \
                      --malloc-fill=0xBA --free-fill=0xDE -- noop",
+                    ERROR_EXITCODE
+                )
+            );
+        }
+
+        {
+            let mut config = ValgrindConfig::new("vg.log");
+            config.malloc_fill = Some(0xBA);
+            config.free_fill = Some(0xDE);
+            config.leak_check = Some(true);
+            assert_eq!(
+                mock_cmd(config, "noop", None, ExitStatus::Ok, MockDir::new()),
+                format!(
+                    "valgrind --log-file=vg.log --leak-check=yes \
+                     --error-exitcode={} --malloc-fill=0xBA \
+                     --free-fill=0xDE -- noop",
+                    ERROR_EXITCODE
+                )
+            );
+        }
+
+        {
+            let mut config = ValgrindConfig::new("vg.log");
+            config.malloc_fill = Some(0xBA);
+            config.free_fill = Some(0xDE);
+            config.leak_check = Some(false);
+            assert_eq!(
+                mock_cmd(config, "noop", None, ExitStatus::Ok, MockDir::new()),
+                format!(
+                    "valgrind --log-file=vg.log --leak-check=no \
+                     --error-exitcode={} --malloc-fill=0xBA \
+                     --free-fill=0xDE -- noop",
                     ERROR_EXITCODE
                 )
             );

@@ -120,378 +120,394 @@ segfault:
 agony:
   debug:
     pre: |
-      ==387== Memcheck, a memory error detector
-      ==387== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-      ==387== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
-      ==387== Command: many/layers/of/agony
-      ==387== Parent PID: 14
-      ==387== 
-      ==387== Invalid read of size 4
-      ==387==    at 0x1091DC: invalid_read (agony.c:9)
-      ==387==    by 0x109338: main (agony.c:50)
-      ==387==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
-      ==387==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1091D3: invalid_read (agony.c:8)
-      ==387==    by 0x109338: main (agony.c:50)
-      ==387== 
-      ==387== Invalid write of size 4
-      ==387==    at 0x109227: invalid_write (agony.c:15)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
-      ==387==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x10921A: invalid_write (agony.c:14)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387== 
-      ==387== Invalid write of size 4
-      ==387==    at 0x10923D: invalid_write (agony.c:17)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
-      ==387==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x109238: invalid_write (agony.c:16)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387==  Block was alloc'd at
-      ==387==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x10921A: invalid_write (agony.c:14)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387== 
-      ==387== Conditional jump or move depends on uninitialised value(s)
-      ==387==    at 0x109256: uninitialized (agony.c:22)
-      ==387==    by 0x10934C: main (agony.c:52)
-      ==387== 
-      ==387== Invalid free() / delete / delete[] / realloc()
-      ==387==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092B6: double_free (agony.c:35)
-      ==387==    by 0x109363: main (agony.c:54)
-      ==387==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
-      ==387==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092AA: double_free (agony.c:34)
-      ==387==    by 0x109363: main (agony.c:54)
-      ==387==  Block was alloc'd at
-      ==387==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x10929A: double_free (agony.c:33)
-      ==387==    by 0x109363: main (agony.c:54)
-      ==387== 
-      ==387== Invalid write of size 4
-      ==387==    at 0x1092E4: use_after_free (agony.c:41)
-      ==387==    by 0x10936D: main (agony.c:55)
-      ==387==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
-      ==387==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092DF: use_after_free (agony.c:40)
-      ==387==    by 0x10936D: main (agony.c:55)
-      ==387==  Block was alloc'd at
-      ==387==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092CF: use_after_free (agony.c:39)
-      ==387==    by 0x10936D: main (agony.c:55)
-      ==387== 
-      ==387== Invalid read of size 4
-      ==387==    at 0x109380: main (agony.c:57)
-      ==387==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
-      ==387== 
-      ==387== 
-      ==387== Process terminating with default action of signal 11 (SIGSEGV)
-      ==387==  Access not within mapped region at address 0x0
-      ==387==    at 0x109380: main (agony.c:57)
-      ==387==  If you believe this happened as a result of a stack
-      ==387==  overflow in your program's main thread (unlikely but
-      ==387==  possible), you can try to increase the size of the
-      ==387==  main thread stack using the --main-stacksize= flag.
-      ==387==  The main thread stack size used in this run was 8388608.
-      ==387== 
-      ==387== HEAP SUMMARY:
-      ==387==     in use at exit: 1,000 bytes in 1 blocks
-      ==387==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
-      ==387== 
-      ==387== LEAK SUMMARY:
-      ==387==    definitely lost: 1,000 bytes in 1 blocks
-      ==387==    indirectly lost: 0 bytes in 0 blocks
-      ==387==      possibly lost: 0 bytes in 0 blocks
-      ==387==    still reachable: 0 bytes in 0 blocks
-      ==387==         suppressed: 0 bytes in 0 blocks
-      ==387== Rerun with --leak-check=full to see details of leaked memory
-      ==387== 
-      ==387== Use --track-origins=yes to see where uninitialised values come from
-      ==387== For lists of detected and suppressed errors, rerun with: -s
-      ==387== ERROR SUMMARY: 7 errors from 7 contexts (suppressed: 0 from 0)
+      ==81== Memcheck, a memory error detector
+      ==81== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+      ==81== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
+      ==81== Command: many/layers/of/agony
+      ==81== Parent PID: 14
+      ==81== 
+      ==81== Invalid read of size 4
+      ==81==    at 0x1091DC: invalid_read (agony.c:9)
+      ==81==    by 0x109338: main (agony.c:50)
+      ==81==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
+      ==81==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1091D3: invalid_read (agony.c:8)
+      ==81==    by 0x109338: main (agony.c:50)
+      ==81== 
+      ==81== Invalid write of size 4
+      ==81==    at 0x109227: invalid_write (agony.c:15)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
+      ==81==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10921A: invalid_write (agony.c:14)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81== 
+      ==81== Invalid write of size 4
+      ==81==    at 0x10923D: invalid_write (agony.c:17)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
+      ==81==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x109238: invalid_write (agony.c:16)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81==  Block was alloc'd at
+      ==81==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10921A: invalid_write (agony.c:14)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81== 
+      ==81== Conditional jump or move depends on uninitialised value(s)
+      ==81==    at 0x109256: uninitialized (agony.c:22)
+      ==81==    by 0x10934C: main (agony.c:52)
+      ==81== 
+      ==81== Invalid free() / delete / delete[] / realloc()
+      ==81==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092B6: double_free (agony.c:35)
+      ==81==    by 0x109363: main (agony.c:54)
+      ==81==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
+      ==81==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092AA: double_free (agony.c:34)
+      ==81==    by 0x109363: main (agony.c:54)
+      ==81==  Block was alloc'd at
+      ==81==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10929A: double_free (agony.c:33)
+      ==81==    by 0x109363: main (agony.c:54)
+      ==81== 
+      ==81== Invalid write of size 4
+      ==81==    at 0x1092E4: use_after_free (agony.c:41)
+      ==81==    by 0x10936D: main (agony.c:55)
+      ==81==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
+      ==81==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092DF: use_after_free (agony.c:40)
+      ==81==    by 0x10936D: main (agony.c:55)
+      ==81==  Block was alloc'd at
+      ==81==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092CF: use_after_free (agony.c:39)
+      ==81==    by 0x10936D: main (agony.c:55)
+      ==81== 
+      ==81== Invalid read of size 4
+      ==81==    at 0x109380: main (agony.c:57)
+      ==81==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
+      ==81== 
+      ==81== 
+      ==81== Process terminating with default action of signal 11 (SIGSEGV)
+      ==81==  Access not within mapped region at address 0x0
+      ==81==    at 0x109380: main (agony.c:57)
+      ==81==  If you believe this happened as a result of a stack
+      ==81==  overflow in your program's main thread (unlikely but
+      ==81==  possible), you can try to increase the size of the
+      ==81==  main thread stack using the --main-stacksize= flag.
+      ==81==  The main thread stack size used in this run was 8388608.
+      ==81== 
+      ==81== HEAP SUMMARY:
+      ==81==     in use at exit: 1,000 bytes in 1 blocks
+      ==81==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
+      ==81== 
+      ==81== 1,000 bytes in 1 blocks are definitely lost in loss record 1 of 1
+      ==81==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10927D: memory_leak (agony.c:29)
+      ==81==    by 0x109359: main (agony.c:53)
+      ==81== 
+      ==81== LEAK SUMMARY:
+      ==81==    definitely lost: 1,000 bytes in 1 blocks
+      ==81==    indirectly lost: 0 bytes in 0 blocks
+      ==81==      possibly lost: 0 bytes in 0 blocks
+      ==81==    still reachable: 0 bytes in 0 blocks
+      ==81==         suppressed: 0 bytes in 0 blocks
+      ==81== 
+      ==81== Use --track-origins=yes to see where uninitialised values come from
+      ==81== For lists of detected and suppressed errors, rerun with: -s
+      ==81== ERROR SUMMARY: 8 errors from 8 contexts (suppressed: 0 from 0)
 
     post: |
-      ==387== Memcheck, a memory error detector
-      ==387== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-      ==387== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
-      ==387== Command: many/layers/of/agony
-      ==387== Parent PID: 14
-      ==387== 
-      ==387== Invalid read of size 4
-      ==387==    at 0x1091DC: invalid_read (agony.c:9)
-      ==387==    by 0x109338: main (agony.c:50)
-      ==387==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
-      ==387==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1091D3: invalid_read (agony.c:8)
-      ==387==    by 0x109338: main (agony.c:50)
-      ==387== 
-      ==387== Invalid write of size 4
-      ==387==    at 0x109227: invalid_write (agony.c:15)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
-      ==387==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x10921A: invalid_write (agony.c:14)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387== 
-      ==387== Invalid write of size 4
-      ==387==    at 0x10923D: invalid_write (agony.c:17)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
-      ==387==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x109238: invalid_write (agony.c:16)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387==  Block was alloc'd at
-      ==387==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x10921A: invalid_write (agony.c:14)
-      ==387==    by 0x109342: main (agony.c:51)
-      ==387== 
-      ==387== Conditional jump or move depends on uninitialised value(s)
-      ==387==    at 0x109256: uninitialized (agony.c:22)
-      ==387==    by 0x10934C: main (agony.c:52)
-      ==387== 
-      ==387== Invalid free() / delete / delete[] / realloc()
-      ==387==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092B6: double_free (agony.c:35)
-      ==387==    by 0x109363: main (agony.c:54)
-      ==387==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
-      ==387==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092AA: double_free (agony.c:34)
-      ==387==    by 0x109363: main (agony.c:54)
-      ==387==  Block was alloc'd at
-      ==387==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x10929A: double_free (agony.c:33)
-      ==387==    by 0x109363: main (agony.c:54)
-      ==387== 
-      ==387== Invalid write of size 4
-      ==387==    at 0x1092E4: use_after_free (agony.c:41)
-      ==387==    by 0x10936D: main (agony.c:55)
-      ==387==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
-      ==387==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092DF: use_after_free (agony.c:40)
-      ==387==    by 0x10936D: main (agony.c:55)
-      ==387==  Block was alloc'd at
-      ==387==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==387==    by 0x1092CF: use_after_free (agony.c:39)
-      ==387==    by 0x10936D: main (agony.c:55)
-      ==387== 
-      ==387== Invalid read of size 4
-      ==387==    at 0x109380: main (agony.c:57)
-      ==387==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
-      ==387== 
-      ==387== 
-      ==387== Process terminating with default action of signal 11 (SIGSEGV)
-      ==387==  Access not within mapped region at address 0x0
-      ==387==    at 0x109380: main (agony.c:57)
-      ==387==  If you believe this happened as a result of a stack
-      ==387==  overflow in your program's main thread (unlikely but
-      ==387==  possible), you can try to increase the size of the
-      ==387==  main thread stack using the --main-stacksize= flag.
-      ==387==  The main thread stack size used in this run was 8388608.
-      ==387== 
-      ==387== HEAP SUMMARY:
-      ==387==     in use at exit: 1,000 bytes in 1 blocks
-      ==387==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
-      ==387== 
-      ==387== LEAK SUMMARY:
-      ==387==    definitely lost: 1,000 bytes in 1 blocks
-      ==387==    indirectly lost: 0 bytes in 0 blocks
-      ==387==      possibly lost: 0 bytes in 0 blocks
-      ==387==    still reachable: 0 bytes in 0 blocks
-      ==387==         suppressed: 0 bytes in 0 blocks
-      ==387== Rerun with --leak-check=full to see details of leaked memory
-      ==387== 
-      ==387== Use --track-origins=yes to see where uninitialised values come from
-      ==387== For lists of detected and suppressed errors, rerun with: -s
-      ==387== ERROR SUMMARY: 7 errors from 7 contexts (suppressed: 0 from 0)
+      ==81== Memcheck, a memory error detector
+      ==81== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+      ==81== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
+      ==81== Command: many/layers/of/agony
+      ==81== Parent PID: 14
+      ==81== 
+      ==81== Invalid read of size 4
+      ==81==    at 0x1091DC: invalid_read (agony.c:9)
+      ==81==    by 0x109338: main (agony.c:50)
+      ==81==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
+      ==81==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1091D3: invalid_read (agony.c:8)
+      ==81==    by 0x109338: main (agony.c:50)
+      ==81== 
+      ==81== Invalid write of size 4
+      ==81==    at 0x109227: invalid_write (agony.c:15)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
+      ==81==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10921A: invalid_write (agony.c:14)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81== 
+      ==81== Invalid write of size 4
+      ==81==    at 0x10923D: invalid_write (agony.c:17)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
+      ==81==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x109238: invalid_write (agony.c:16)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81==  Block was alloc'd at
+      ==81==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10921A: invalid_write (agony.c:14)
+      ==81==    by 0x109342: main (agony.c:51)
+      ==81== 
+      ==81== Conditional jump or move depends on uninitialised value(s)
+      ==81==    at 0x109256: uninitialized (agony.c:22)
+      ==81==    by 0x10934C: main (agony.c:52)
+      ==81== 
+      ==81== Invalid free() / delete / delete[] / realloc()
+      ==81==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092B6: double_free (agony.c:35)
+      ==81==    by 0x109363: main (agony.c:54)
+      ==81==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
+      ==81==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092AA: double_free (agony.c:34)
+      ==81==    by 0x109363: main (agony.c:54)
+      ==81==  Block was alloc'd at
+      ==81==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10929A: double_free (agony.c:33)
+      ==81==    by 0x109363: main (agony.c:54)
+      ==81== 
+      ==81== Invalid write of size 4
+      ==81==    at 0x1092E4: use_after_free (agony.c:41)
+      ==81==    by 0x10936D: main (agony.c:55)
+      ==81==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
+      ==81==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092DF: use_after_free (agony.c:40)
+      ==81==    by 0x10936D: main (agony.c:55)
+      ==81==  Block was alloc'd at
+      ==81==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x1092CF: use_after_free (agony.c:39)
+      ==81==    by 0x10936D: main (agony.c:55)
+      ==81== 
+      ==81== Invalid read of size 4
+      ==81==    at 0x109380: main (agony.c:57)
+      ==81==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
+      ==81== 
+      ==81== 
+      ==81== Process terminating with default action of signal 11 (SIGSEGV)
+      ==81==  Access not within mapped region at address 0x0
+      ==81==    at 0x109380: main (agony.c:57)
+      ==81==  If you believe this happened as a result of a stack
+      ==81==  overflow in your program's main thread (unlikely but
+      ==81==  possible), you can try to increase the size of the
+      ==81==  main thread stack using the --main-stacksize= flag.
+      ==81==  The main thread stack size used in this run was 8388608.
+      ==81== 
+      ==81== HEAP SUMMARY:
+      ==81==     in use at exit: 1,000 bytes in 1 blocks
+      ==81==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
+      ==81== 
+      ==81== 1,000 bytes in 1 blocks are definitely lost in loss record 1 of 1
+      ==81==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==81==    by 0x10927D: memory_leak (agony.c:29)
+      ==81==    by 0x109359: main (agony.c:53)
+      ==81== 
+      ==81== LEAK SUMMARY:
+      ==81==    definitely lost: 1,000 bytes in 1 blocks
+      ==81==    indirectly lost: 0 bytes in 0 blocks
+      ==81==      possibly lost: 0 bytes in 0 blocks
+      ==81==    still reachable: 0 bytes in 0 blocks
+      ==81==         suppressed: 0 bytes in 0 blocks
+      ==81== 
+      ==81== Use --track-origins=yes to see where uninitialised values come from
+      ==81== For lists of detected and suppressed errors, rerun with: -s
+      ==81== ERROR SUMMARY: 8 errors from 8 contexts (suppressed: 0 from 0)
 
   release:
     pre: |
-      ==405== Memcheck, a memory error detector
-      ==405== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-      ==405== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
-      ==405== Command: many/layers/of/agony
-      ==405== Parent PID: 14
-      ==405== 
-      ==405== Invalid read of size 4
-      ==405==    at 0x1091DC: invalid_read (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109338: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
-      ==405==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1091D3: invalid_read (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109338: main (in /root/genos_tests/many/layers/of/agony)
-      ==405== 
-      ==405== Invalid write of size 4
-      ==405==    at 0x109227: invalid_write (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
-      ==405==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x10921A: invalid_write (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
-      ==405== 
-      ==405== Invalid write of size 4
-      ==405==    at 0x10923D: invalid_write (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
-      ==405==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x109238: invalid_write (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Block was alloc'd at
-      ==405==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x10921A: invalid_write (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
-      ==405== 
-      ==405== Conditional jump or move depends on uninitialised value(s)
-      ==405==    at 0x109256: uninitialized (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x10934C: main (in /root/genos_tests/many/layers/of/agony)
-      ==405== 
-      ==405== Invalid free() / delete / delete[] / realloc()
-      ==405==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092B6: double_free (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109363: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
-      ==405==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092AA: double_free (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109363: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Block was alloc'd at
-      ==405==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x10929A: double_free (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x109363: main (in /root/genos_tests/many/layers/of/agony)
-      ==405== 
-      ==405== Invalid write of size 4
-      ==405==    at 0x1092E4: use_after_free (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x10936D: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
-      ==405==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092DF: use_after_free (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x10936D: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Block was alloc'd at
-      ==405==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092CF: use_after_free (in /root/genos_tests/many/layers/of/agony)
-      ==405==    by 0x10936D: main (in /root/genos_tests/many/layers/of/agony)
-      ==405== 
-      ==405== Invalid read of size 4
-      ==405==    at 0x109380: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
-      ==405== 
-      ==405== 
-      ==405== Process terminating with default action of signal 11 (SIGSEGV)
-      ==405==  Access not within mapped region at address 0x0
-      ==405==    at 0x109380: main (in /root/genos_tests/many/layers/of/agony)
-      ==405==  If you believe this happened as a result of a stack
-      ==405==  overflow in your program's main thread (unlikely but
-      ==405==  possible), you can try to increase the size of the
-      ==405==  main thread stack using the --main-stacksize= flag.
-      ==405==  The main thread stack size used in this run was 8388608.
-      ==405== 
-      ==405== HEAP SUMMARY:
-      ==405==     in use at exit: 1,000 bytes in 1 blocks
-      ==405==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
-      ==405== 
-      ==405== LEAK SUMMARY:
-      ==405==    definitely lost: 1,000 bytes in 1 blocks
-      ==405==    indirectly lost: 0 bytes in 0 blocks
-      ==405==      possibly lost: 0 bytes in 0 blocks
-      ==405==    still reachable: 0 bytes in 0 blocks
-      ==405==         suppressed: 0 bytes in 0 blocks
-      ==405== Rerun with --leak-check=full to see details of leaked memory
-      ==405== 
-      ==405== Use --track-origins=yes to see where uninitialised values come from
-      ==405== For lists of detected and suppressed errors, rerun with: -s
-      ==405== ERROR SUMMARY: 7 errors from 7 contexts (suppressed: 0 from 0)
+      ==90== Memcheck, a memory error detector
+      ==90== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+      ==90== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
+      ==90== Command: many/layers/of/agony
+      ==90== Parent PID: 14
+      ==90== 
+      ==90== Invalid read of size 4
+      ==90==    at 0x1091DC: invalid_read (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109338: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
+      ==90==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1091D3: invalid_read (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109338: main (in /root/genos_tests/many/layers/of/agony)
+      ==90== 
+      ==90== Invalid write of size 4
+      ==90==    at 0x109227: invalid_write (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
+      ==90==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10921A: invalid_write (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
+      ==90== 
+      ==90== Invalid write of size 4
+      ==90==    at 0x10923D: invalid_write (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
+      ==90==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x109238: invalid_write (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Block was alloc'd at
+      ==90==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10921A: invalid_write (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109342: main (in /root/genos_tests/many/layers/of/agony)
+      ==90== 
+      ==90== Conditional jump or move depends on uninitialised value(s)
+      ==90==    at 0x109256: uninitialized (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x10934C: main (in /root/genos_tests/many/layers/of/agony)
+      ==90== 
+      ==90== Invalid free() / delete / delete[] / realloc()
+      ==90==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092B6: double_free (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109363: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
+      ==90==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092AA: double_free (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109363: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Block was alloc'd at
+      ==90==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10929A: double_free (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109363: main (in /root/genos_tests/many/layers/of/agony)
+      ==90== 
+      ==90== Invalid write of size 4
+      ==90==    at 0x1092E4: use_after_free (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x10936D: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
+      ==90==    at 0x483CA3F: free (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092DF: use_after_free (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x10936D: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Block was alloc'd at
+      ==90==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092CF: use_after_free (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x10936D: main (in /root/genos_tests/many/layers/of/agony)
+      ==90== 
+      ==90== Invalid read of size 4
+      ==90==    at 0x109380: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
+      ==90== 
+      ==90== 
+      ==90== Process terminating with default action of signal 11 (SIGSEGV)
+      ==90==  Access not within mapped region at address 0x0
+      ==90==    at 0x109380: main (in /root/genos_tests/many/layers/of/agony)
+      ==90==  If you believe this happened as a result of a stack
+      ==90==  overflow in your program's main thread (unlikely but
+      ==90==  possible), you can try to increase the size of the
+      ==90==  main thread stack using the --main-stacksize= flag.
+      ==90==  The main thread stack size used in this run was 8388608.
+      ==90== 
+      ==90== HEAP SUMMARY:
+      ==90==     in use at exit: 1,000 bytes in 1 blocks
+      ==90==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
+      ==90== 
+      ==90== 1,000 bytes in 1 blocks are definitely lost in loss record 1 of 1
+      ==90==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10927D: memory_leak (in /root/genos_tests/many/layers/of/agony)
+      ==90==    by 0x109359: main (in /root/genos_tests/many/layers/of/agony)
+      ==90== 
+      ==90== LEAK SUMMARY:
+      ==90==    definitely lost: 1,000 bytes in 1 blocks
+      ==90==    indirectly lost: 0 bytes in 0 blocks
+      ==90==      possibly lost: 0 bytes in 0 blocks
+      ==90==    still reachable: 0 bytes in 0 blocks
+      ==90==         suppressed: 0 bytes in 0 blocks
+      ==90== 
+      ==90== Use --track-origins=yes to see where uninitialised values come from
+      ==90== For lists of detected and suppressed errors, rerun with: -s
+      ==90== ERROR SUMMARY: 8 errors from 8 contexts (suppressed: 0 from 0)
 
     post: |
-      ==405== Memcheck, a memory error detector
-      ==405== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-      ==405== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
-      ==405== Command: many/layers/of/agony
-      ==405== Parent PID: 14
-      ==405== 
-      ==405== Invalid read of size 4
-      ==405==    at 0x1091DC: invalid_read (in agony)
-      ==405==    by 0x109338: main (in agony)
-      ==405==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
-      ==405==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1091D3: invalid_read (in agony)
-      ==405==    by 0x109338: main (in agony)
-      ==405== 
-      ==405== Invalid write of size 4
-      ==405==    at 0x109227: invalid_write (in agony)
-      ==405==    by 0x109342: main (in agony)
-      ==405==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
-      ==405==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x10921A: invalid_write (in agony)
-      ==405==    by 0x109342: main (in agony)
-      ==405== 
-      ==405== Invalid write of size 4
-      ==405==    at 0x10923D: invalid_write (in agony)
-      ==405==    by 0x109342: main (in agony)
-      ==405==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
-      ==405==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x109238: invalid_write (in agony)
-      ==405==    by 0x109342: main (in agony)
-      ==405==  Block was alloc'd at
-      ==405==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x10921A: invalid_write (in agony)
-      ==405==    by 0x109342: main (in agony)
-      ==405== 
-      ==405== Conditional jump or move depends on uninitialised value(s)
-      ==405==    at 0x109256: uninitialized (in agony)
-      ==405==    by 0x10934C: main (in agony)
-      ==405== 
-      ==405== Invalid free() / delete / delete[] / realloc()
-      ==405==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092B6: double_free (in agony)
-      ==405==    by 0x109363: main (in agony)
-      ==405==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
-      ==405==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092AA: double_free (in agony)
-      ==405==    by 0x109363: main (in agony)
-      ==405==  Block was alloc'd at
-      ==405==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x10929A: double_free (in agony)
-      ==405==    by 0x109363: main (in agony)
-      ==405== 
-      ==405== Invalid write of size 4
-      ==405==    at 0x1092E4: use_after_free (in agony)
-      ==405==    by 0x10936D: main (in agony)
-      ==405==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
-      ==405==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092DF: use_after_free (in agony)
-      ==405==    by 0x10936D: main (in agony)
-      ==405==  Block was alloc'd at
-      ==405==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
-      ==405==    by 0x1092CF: use_after_free (in agony)
-      ==405==    by 0x10936D: main (in agony)
-      ==405== 
-      ==405== Invalid read of size 4
-      ==405==    at 0x109380: main (in agony)
-      ==405==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
-      ==405== 
-      ==405== 
-      ==405== Process terminating with default action of signal 11 (SIGSEGV)
-      ==405==  Access not within mapped region at address 0x0
-      ==405==    at 0x109380: main (in agony)
-      ==405==  If you believe this happened as a result of a stack
-      ==405==  overflow in your program's main thread (unlikely but
-      ==405==  possible), you can try to increase the size of the
-      ==405==  main thread stack using the --main-stacksize= flag.
-      ==405==  The main thread stack size used in this run was 8388608.
-      ==405== 
-      ==405== HEAP SUMMARY:
-      ==405==     in use at exit: 1,000 bytes in 1 blocks
-      ==405==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
-      ==405== 
-      ==405== LEAK SUMMARY:
-      ==405==    definitely lost: 1,000 bytes in 1 blocks
-      ==405==    indirectly lost: 0 bytes in 0 blocks
-      ==405==      possibly lost: 0 bytes in 0 blocks
-      ==405==    still reachable: 0 bytes in 0 blocks
-      ==405==         suppressed: 0 bytes in 0 blocks
-      ==405== Rerun with --leak-check=full to see details of leaked memory
-      ==405== 
-      ==405== Use --track-origins=yes to see where uninitialised values come from
-      ==405== For lists of detected and suppressed errors, rerun with: -s
-      ==405== ERROR SUMMARY: 7 errors from 7 contexts (suppressed: 0 from 0)
+      ==90== Memcheck, a memory error detector
+      ==90== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+      ==90== Using Valgrind-3.15.0 and LibVEX; rerun with -h for copyright info
+      ==90== Command: many/layers/of/agony
+      ==90== Parent PID: 14
+      ==90== 
+      ==90== Invalid read of size 4
+      ==90==    at 0x1091DC: invalid_read (in agony)
+      ==90==    by 0x109338: main (in agony)
+      ==90==  Address 0x4a45044 is 3 bytes after a block of size 1 alloc'd
+      ==90==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1091D3: invalid_read (in agony)
+      ==90==    by 0x109338: main (in agony)
+      ==90== 
+      ==90== Invalid write of size 4
+      ==90==    at 0x109227: invalid_write (in agony)
+      ==90==    by 0x109342: main (in agony)
+      ==90==  Address 0x4a45094 is 3 bytes after a block of size 1 alloc'd
+      ==90==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10921A: invalid_write (in agony)
+      ==90==    by 0x109342: main (in agony)
+      ==90== 
+      ==90== Invalid write of size 4
+      ==90==    at 0x10923D: invalid_write (in agony)
+      ==90==    by 0x109342: main (in agony)
+      ==90==  Address 0x4a45090 is 0 bytes inside a block of size 1 free'd
+      ==90==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x109238: invalid_write (in agony)
+      ==90==    by 0x109342: main (in agony)
+      ==90==  Block was alloc'd at
+      ==90==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10921A: invalid_write (in agony)
+      ==90==    by 0x109342: main (in agony)
+      ==90== 
+      ==90== Conditional jump or move depends on uninitialised value(s)
+      ==90==    at 0x109256: uninitialized (in agony)
+      ==90==    by 0x10934C: main (in agony)
+      ==90== 
+      ==90== Invalid free() / delete / delete[] / realloc()
+      ==90==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092B6: double_free (in agony)
+      ==90==    by 0x109363: main (in agony)
+      ==90==  Address 0x4a45510 is 0 bytes inside a block of size 1,000 free'd
+      ==90==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092AA: double_free (in agony)
+      ==90==    by 0x109363: main (in agony)
+      ==90==  Block was alloc'd at
+      ==90==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10929A: double_free (in agony)
+      ==90==    by 0x109363: main (in agony)
+      ==90== 
+      ==90== Invalid write of size 4
+      ==90==    at 0x1092E4: use_after_free (in agony)
+      ==90==    by 0x10936D: main (in agony)
+      ==90==  Address 0x4a45940 is 0 bytes inside a block of size 1,000 free'd
+      ==90==    at 0x483CA3F: free (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092DF: use_after_free (in agony)
+      ==90==    by 0x10936D: main (in agony)
+      ==90==  Block was alloc'd at
+      ==90==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x1092CF: use_after_free (in agony)
+      ==90==    by 0x10936D: main (in agony)
+      ==90== 
+      ==90== Invalid read of size 4
+      ==90==    at 0x109380: main (in agony)
+      ==90==  Address 0x0 is not stack'd, malloc'd or (recently) free'd
+      ==90== 
+      ==90== 
+      ==90== Process terminating with default action of signal 11 (SIGSEGV)
+      ==90==  Access not within mapped region at address 0x0
+      ==90==    at 0x109380: main (in agony)
+      ==90==  If you believe this happened as a result of a stack
+      ==90==  overflow in your program's main thread (unlikely but
+      ==90==  possible), you can try to increase the size of the
+      ==90==  main thread stack using the --main-stacksize= flag.
+      ==90==  The main thread stack size used in this run was 8388608.
+      ==90== 
+      ==90== HEAP SUMMARY:
+      ==90==     in use at exit: 1,000 bytes in 1 blocks
+      ==90==   total heap usage: 5 allocs, 5 frees, 3,002 bytes allocated
+      ==90== 
+      ==90== 1,000 bytes in 1 blocks are definitely lost in loss record 1 of 1
+      ==90==    at 0x483B7F3: malloc (in vgpreload_memcheck-amd64-linux.so)
+      ==90==    by 0x10927D: memory_leak (in agony)
+      ==90==    by 0x109359: main (in agony)
+      ==90== 
+      ==90== LEAK SUMMARY:
+      ==90==    definitely lost: 1,000 bytes in 1 blocks
+      ==90==    indirectly lost: 0 bytes in 0 blocks
+      ==90==      possibly lost: 0 bytes in 0 blocks
+      ==90==    still reachable: 0 bytes in 0 blocks
+      ==90==         suppressed: 0 bytes in 0 blocks
+      ==90== 
+      ==90== Use --track-origins=yes to see where uninitialised values come from
+      ==90== For lists of detected and suppressed errors, rerun with: -s
+      ==90== ERROR SUMMARY: 8 errors from 8 contexts (suppressed: 0 from 0)
