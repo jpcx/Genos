@@ -56,10 +56,22 @@ impl Command {
         }
     }
 
-    pub fn arg<T: Into<String>>(mut self, arg: T) -> Self {
+    pub fn add_arg<T: Into<String>>(&mut self, arg: T) {
         let arg = arg.into();
         self.args.push(arg);
+    }
+
+    pub fn arg<T: Into<String>>(mut self, arg: T) -> Self {
+        self.add_arg(arg);
         self
+    }
+
+    pub fn add_args<T, S>(&mut self, args: T)
+    where
+        T: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.args.extend(args.into_iter().map(|s| s.into()));
     }
 
     pub fn args<T, S>(mut self, args: T) -> Self
@@ -67,7 +79,7 @@ impl Command {
         T: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        self.args.extend(args.into_iter().map(|s| s.into()));
+        self.add_args(args);
         self
     }
 

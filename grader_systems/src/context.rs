@@ -3,13 +3,14 @@ use std::{path::Path, sync::Arc};
 use crate::{
     config::{Cli, HwConfig, TestConfig, TestType},
     finder::{Finder, TestConfigFinder, TestFileFinder},
-    stage::{compile::Compile, run::Run},
+    stage::{compile::Compile, run::Run, valgrind::Valgrind},
 };
 
 use anyhow::{anyhow, Result};
 use genos::{
     fs::ResourceLocator,
-    process::ShellExecutor,
+    gs::running_in_gs,
+    process::{is_program_in_path, ShellExecutor},
     stage::{
         compare_files::{ComparatorCreatorImpl, CompareFiles},
         import_files::ImportFiles,
@@ -89,6 +90,31 @@ impl Context {
                 ComparatorCreatorImpl::new(ShellExecutor),
                 compare_files.clone(),
             ));
+        }
+
+        if is_program_in_path("valgrind") {
+            if let Some(conf) = config.valgrind.clone() {
+                test.add_stage(Valgrind::new(
+                    ShellExecutor,
+                    conf,
+                    config.run.executable.clone(),
+                    config.run.args.clone(),
+                    config.run.stdin.clone(),
+                    config.run.timeout().clone(),
+                ));
+            }
+        } else {
+            assert!(
+                !running_in_gs(),
+                "Running in gradescope, but valgrind not found!"
+            );
+
+            if let Some(_) = &config.valgrind {
+                tracing::warn!(
+                    "Cannot run valgrind stage on local instance \
+                     without valgrind installed! Skipping stage."
+                );
+            }
         }
 
         Ok(test)

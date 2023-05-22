@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct CompileConfig {
-    /// We always require a makefile to be pressent in the ws root. The args in the config are
+    /// We always require a makefile to be present in the ws root. The args in the config are
     /// passed directly to make.
     /// Ex: "make"
     /// Ex: "make TEST=main.c"

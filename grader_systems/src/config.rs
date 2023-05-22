@@ -17,7 +17,7 @@ use serde::{de, Deserialize, Deserializer};
 use thiserror::Error;
 use tokio::{fs::File, io::AsyncReadExt};
 
-use crate::stage::{compile::CompileConfig, run::RunConfig};
+use crate::stage::{compile::CompileConfig, run::RunConfig, valgrind::ValgrindConfig};
 
 pub const TEST_CONFIG_NAME: &'static str = "config.yaml";
 
@@ -76,6 +76,7 @@ pub struct TestConfig {
     pub run: RunConfig,
     pub compare_files: Option<ComparesConfig>,
     pub import_files: Option<ImportConfig>,
+    pub valgrind: Option<ValgrindConfig>,
 }
 
 #[async_trait]

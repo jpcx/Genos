@@ -286,6 +286,7 @@ dependencies = [
  "futures",
  "genos",
  "glob",
+ "regex",
  "serde",
  "serde_yaml",
  "tempfile",
