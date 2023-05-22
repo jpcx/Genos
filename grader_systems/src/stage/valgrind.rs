@@ -77,8 +77,8 @@ impl<E: ProcessExecutor> Valgrind<E> {
 
         cmd.add_arg(format!("--log-file={}", &self.config.log_file));
 
-        if let Some(v) = &self.config.leak_check {
-            cmd.add_arg(format!("--leak-check={}", if !!v { "yes" } else { "no" }));
+        if let Some(v) = self.config.leak_check {
+            cmd.add_arg(format!("--leak-check={}", if v { "yes" } else { "no" }));
         }
 
         cmd.add_arg(format!("--error-exitcode={}", ERROR_EXITCODE));
