@@ -119,16 +119,16 @@ impl<E: ProcessExecutor> Valgrind<E> {
             ));
         }
         let contents = read_file(&path)?;
-        // replace all absolute paths with basename
-        let re = Regex::new(r"(\W|^)(?:\/[^\/\s]+)+\/([^\/\s]+)\b")?;
-        let repl = re.replace_all(&contents, "$1$2");
-
-        if repl.trim().is_empty() {
+        if contents.trim().is_empty() {
             return Err(anyhow!(
                 "Found empty valgrind log at {:?}. Something went wrong.",
                 path.to_str()
             ));
         }
+
+        // replace all absolute paths with basename
+        let re = Regex::new(r"(\W|^)(?:\/[^\/\s]+)+\/([^\/\s]+)\b")?;
+        let repl = re.replace_all(&contents, "$1$2");
 
         Ok(repl.to_string())
     }
