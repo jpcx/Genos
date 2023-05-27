@@ -83,12 +83,20 @@ impl Command {
         self
     }
 
-    pub fn env<K, V>(mut self, key: K, val: V) -> Self
+    pub fn add_env<K, V>(&mut self, key: K, val: V)
     where
         K: Into<String>,
         V: Into<String>,
     {
         self.envs.insert(key.into(), val.into());
+    }
+
+    pub fn env<K, V>(mut self, key: K, val: V) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.add_env(key, val);
         self
     }
 

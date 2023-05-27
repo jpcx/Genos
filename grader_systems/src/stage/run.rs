@@ -1,4 +1,7 @@
-use std::{path::Path, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -33,6 +36,15 @@ pub struct RunConfig {
 impl RunConfig {
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout_sec.map(|val| Duration::from_secs(val))
+    }
+
+    pub fn executable(&self, ws: &Path) -> Result<PathBuf> {
+        let path = ws.join(&self.executable);
+        if path.exists() {
+            Ok(ws.join(&self.executable))
+        } else {
+            Err(anyhow!("Could not find executable {}", self.executable))
+        }
     }
 }
 
@@ -370,7 +382,15 @@ mod tests {
         let run = Run::new(executor, config);
 
         let cmd = run.get_run_command(ws.path());
-        let expected = Command::new("bin/exec");
+        let expected = if is_program_in_path("valgrind") {
+            Command::new("valgrind")
+                .arg("--log-file=valgrind.log")
+                .arg("--malloc-fill=0xFF")
+                .arg("--free-fill=0xAA")
+                .arg("bin/exec")
+        } else {
+            Command::new("bin/exec")
+        };
         assert_eq!(cmd.to_string(), expected.to_string());
     }
 
@@ -389,10 +409,21 @@ mod tests {
         let run = Run::new(executor, config);
 
         let cmd = run.get_run_command(ws.path());
-        let expected = Command::new("bin/exec")
-            .stdout("stdout")
-            .stdin(StdinPipe::Path("stdin".into()))
-            .stderr("stderr");
+        let expected = if is_program_in_path("valgrind") {
+            Command::new("valgrind")
+                .arg("--log-file=valgrind.log")
+                .arg("--malloc-fill=0xFF")
+                .arg("--free-fill=0xAA")
+                .arg("bin/exec")
+                .stdout("stdout")
+                .stdin(StdinPipe::Path("stdin".into()))
+                .stderr("stderr")
+        } else {
+            Command::new("bin/exec")
+                .stdout("stdout")
+                .stdin(StdinPipe::Path("stdin".into()))
+                .stderr("stderr")
+        };
         assert_eq!(cmd.to_string(), expected.to_string());
     }
 
