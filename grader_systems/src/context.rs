@@ -94,14 +94,13 @@ impl Context {
 
         if is_program_in_path("valgrind") {
             if let Some(conf) = config.valgrind.clone() {
-                test.add_stage(Valgrind::new(
-                    ShellExecutor,
-                    conf,
-                    config.run.executable.clone(),
-                    config.run.args.clone(),
-                    config.run.stdin.clone(),
-                    config.run.timeout().clone(),
-                ));
+                test.add_stage(Valgrind {
+                    executor: ShellExecutor,
+                    config: conf,
+                    run_config: config.run.clone(),
+                    config_path: self.cli_config.config.clone(),
+                    test_id: config.description.test_id,
+                });
             }
         } else {
             assert!(

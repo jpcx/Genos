@@ -4,6 +4,8 @@ use anyhow::{anyhow, Result};
 use std::result::Result as StdResult;
 use thiserror::Error;
 
+use tokio::{fs::File, io::AsyncReadExt};
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("File not found")]
@@ -48,4 +50,11 @@ pub fn filename<'a>(file: &'a Path) -> Result<&'a str> {
             "Could not convert OsStr to str for file {}",
             file.display()
         ))?)
+}
+
+pub async fn read_file(path: &Path) -> Result<String> {
+    let mut file = File::open(path).await?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).await?;
+    Ok(contents)
 }

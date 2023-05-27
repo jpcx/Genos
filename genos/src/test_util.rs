@@ -44,17 +44,25 @@ impl MockDir {
         }
     }
 
-    pub fn file<T: Into<MockFile>>(self, file: T) -> Self {
+    pub fn add_file<T: Into<MockFile>>(&self, file: T) {
         let file = file.into();
         create_temp_file_in(self.root.path(), &file.name, &file.contents);
+    }
+
+    pub fn file<T: Into<MockFile>>(self, file: T) -> Self {
+        self.add_file(file);
         self
     }
 
-    pub fn dir<T: Into<MockDir>, N: AsRef<std::path::Path>>(self, name: N, dir: T) -> Self {
+    pub fn add_dir<T: Into<MockDir>, N: AsRef<std::path::Path>>(&self, name: N, dir: T) {
         let new_dir = dir.into();
         let new_dir = new_dir.root.into_path();
         let dest = self.root.path().join(name);
         std::fs::rename(new_dir, dest).unwrap();
+    }
+
+    pub fn dir<T: Into<MockDir>, N: AsRef<std::path::Path>>(self, name: N, dir: T) -> Self {
+        self.add_dir(name, dir);
         self
     }
 
